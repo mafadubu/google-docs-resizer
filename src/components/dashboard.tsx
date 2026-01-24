@@ -37,6 +37,10 @@ export function Dashboard() {
     // So functional result is identical. I will proceed with this.
     const [showGuide, setShowGuide] = useState(false);
 
+    const [showWarning, setShowWarning] = useState(false);
+    const [warningMsg, setWarningMsg] = useState("");
+    const [isUrlInvalid, setIsUrlInvalid] = useState(false);
+
     // Check guide status on mount
     useEffect(() => {
         const hasSeenGuide = localStorage.getItem("has-seen-guide");
@@ -55,11 +59,37 @@ export function Dashboard() {
     const [resizeStatus, setResizeStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
     const [resultMsg, setResultMsg] = useState("");
 
+    const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const url = e.target.value;
+        setDocUrl(url);
+
+        // Reset invalid state when user types
+        if (isUrlInvalid) setIsUrlInvalid(false);
+    };
+
+    const handleReset = () => {
+        setStructure(null);
+        setDocUrl("");
+        setResizeStatus("idle");
+        setResultMsg("");
+        setIsUrlInvalid(false);
+        setWarningMsg("");
+    };
+
     const fetchStructure = async () => {
+        // Validation before fetch
+        if (!docUrl.includes("docs.google.com/document/d/")) {
+            setWarningMsg("올바른 Google Docs URL을 입력해주세요.");
+            setShowWarning(true);
+            setIsUrlInvalid(true);
+            return;
+        }
+
         // Extract ID from URL
         let docId = docUrl;
         const match = docUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
         if (match) docId = match[1];
+
 
         if (!docId) {
             alert("Please enter a valid Google Doc URL or ID");
