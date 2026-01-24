@@ -99,7 +99,7 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                         )}
                     </button>
                     {step === 1 && (
-                        <button onClick={handleClose} className="w-full mt-4 text-sm text-gray-400 font-medium hover:text-gray-600">
+                        <button onClick={onClose} className="w-full mt-4 text-sm text-gray-400 font-medium hover:text-gray-600">
                             건너뛰기
                         </button>
                     )}
