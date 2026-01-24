@@ -46,6 +46,9 @@ export async function POST(req: Request) {
             },
         });
 
+        // Update stats (fire and forget)
+        incrementStats(requests.length).catch(e => console.error("Stats Error:", e));
+
         return NextResponse.json({
             success: true,
             count: requests.length,
