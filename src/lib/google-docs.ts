@@ -20,8 +20,7 @@ export interface DocumentStructure {
 
 export interface ResizeRequest {
     targetWidthCm: number;
-    scopeStartIndex?: number;
-    scopeEndIndex?: number;
+    scopes?: Array<{ start: number; end: number }>;
 }
 
 // --- Helpers ---
