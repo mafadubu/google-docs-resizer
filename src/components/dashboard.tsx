@@ -349,15 +349,32 @@ export function Dashboard() {
                                         목표 너비 (cm)
                                     </label>
                                     <div className="flex items-center space-x-4">
-                                        <input
-                                            type="range"
-                                            min="5"
-                                            max="20"
-                                            step="0.5"
-                                            value={targetWidth}
-                                            onChange={(e) => setTargetWidth(Number(e.target.value))}
-                                            className="flex-1 accent-indigo-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                        />
+                                        <div className="flex-1 relative group h-8 flex items-center">
+                                            {/* Tooltip Bubble */}
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                                                animate={{
+                                                    opacity: 1,
+                                                    y: -35,
+                                                    scale: 1,
+                                                    left: `calc(${((targetWidth - 5) / (20 - 5)) * 100}% + (${8 - ((targetWidth - 5) / (20 - 5)) * 16}px))`
+                                                }}
+                                                className="absolute top-0 transform -translate-x-1/2 bg-gray-900 text-white text-xs font-bold py-1 px-2.5 rounded-lg shadow-lg pointer-events-none whitespace-nowrap z-10 hidden group-hover:block group-active:block"
+                                            >
+                                                {targetWidth}cm
+                                                <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45" />
+                                            </motion.div>
+
+                                            <input
+                                                type="range"
+                                                min="5"
+                                                max="20"
+                                                step="0.5"
+                                                value={targetWidth}
+                                                onChange={(e) => setTargetWidth(Number(e.target.value))}
+                                                className="w-full accent-indigo-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                                            />
+                                        </div>
                                         <div className="w-20 pl-4 py-2 bg-gray-100 rounded-lg text-center font-mono font-bold text-gray-700">
                                             {targetWidth}cm
                                         </div>
