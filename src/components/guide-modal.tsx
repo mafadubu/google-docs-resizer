@@ -1,4 +1,3 @@
-```
 "use client";
 
 import { useEffect, useState } from "react";
@@ -36,8 +35,8 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
 
                 {/* Progress Indicators */}
                 <div className="flex justify-center space-x-2 mb-8">
-                    <div className={`h - 1.5 rounded - full transition - all duration - 300 ${ step === 1 ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200' } `}></div>
-                    <div className={`h - 1.5 rounded - full transition - all duration - 300 ${ step === 2 ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200' } `}></div>
+                    <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 1 ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200'}`}></div>
+                    <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 2 ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200'}`}></div>
                 </div>
 
                 {/* Content - Step 1 */}
