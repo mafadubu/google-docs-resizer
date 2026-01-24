@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck } from "lucide-react";
+import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck, ChevronUp } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 import { WarningModal } from "@/components/warning-modal";
 import { SuccessModal } from "@/components/success-modal";
@@ -272,21 +272,39 @@ export function Dashboard() {
                                 <FileText className="w-5 h-5 mr-2 text-indigo-500" />
                                 1. 문서 선택
                             </h2>
-                            {isLoaded && (
-                                <motion.div
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 20 }}
-                                >
-                                    <button
-                                        onClick={handleReset}
-                                        className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
+                            <AnimatePresence>
+                                {isLoaded ? (
+                                    <motion.div
+                                        key="reenter-btn"
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 20 }}
                                     >
-                                        <RefreshCw className="w-3 h-3 mr-1.5" />
-                                        URL 다시 입력하기
-                                    </button>
-                                </motion.div>
-                            )}
+                                        <button
+                                            onClick={handleReset}
+                                            className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
+                                        >
+                                            <RefreshCw className="w-3 h-3 mr-1.5" />
+                                            URL 다시 입력하기
+                                        </button>
+                                    </motion.div>
+                                ) : structure ? (
+                                    <motion.div
+                                        key="fold-btn"
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 20 }}
+                                    >
+                                        <button
+                                            onClick={() => setIsLoaded(true)}
+                                            className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
+                                        >
+                                            <ChevronUp className="w-3 h-3 mr-1.5" />
+                                            접기
+                                        </button>
+                                    </motion.div>
+                                ) : null}
+                            </AnimatePresence>
                         </div>
 
                         <AnimatePresence>
