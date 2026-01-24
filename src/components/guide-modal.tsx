@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X, ChevronRight, FileText, RefreshCw, CheckCircle, MousePointer2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     const [step, setStep] = useState(1);
@@ -22,9 +23,22 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-in zoom-in-95 duration-300 mx-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+            {/* Backdrop */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm pointer-events-auto"
+                onClick={onClose}
+            />
 
+            {/* Morphing Card */}
+            <motion.div
+                layoutId="guide-modal-trigger"
+                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative mx-4 pointer-events-auto overflow-hidden"
+                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            >
                 {/* Close Button */}
                 <button
                     onClick={onClose}
@@ -42,17 +56,17 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 {/* Content - Step 1 */}
                 {step === 1 && (
                     <div className="text-center space-y-6 animate-in slide-in-from-right-8 duration-300">
-                        <div className="relative mx-auto w-24 h-24 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 mb-6 group">
+                        <motion.div layoutId="guide-icon" className="relative mx-auto w-24 h-24 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100 mb-6 group">
                             <FileText className="w-10 h-10 text-indigo-600" />
                             <div className="absolute -bottom-2 -right-2 bg-white shadow-lg p-2 rounded-lg border border-gray-100 animate-bounce">
                                 <MousePointer2 className="w-5 h-5 text-indigo-500 fill-indigo-500" />
                             </div>
-                        </div>
+                        </motion.div>
 
                         <div>
-                            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                            <motion.h3 layoutId="guide-text" className="text-2xl font-bold text-gray-900 mb-3 block">
                                 1. 문서를 불러오세요
-                            </h3>
+                            </motion.h3>
                             <p className="text-gray-500 leading-relaxed">
                                 구글 문서의 <span className="font-bold text-indigo-600 bg-indigo-50 px-1 rounded">URL 주소</span>를 복사해서 붙여넣기만 하면 됩니다.
                             </p>
@@ -104,7 +118,7 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                     )}
                 </div>
 
-            </div>
+            </motion.div>
         </div>
     );
 }
