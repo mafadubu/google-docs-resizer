@@ -1,31 +1,23 @@
+```
 "use client";
 
 import { useEffect, useState } from "react";
 import { X, ChevronRight, FileText, RefreshCw, CheckCircle, MousePointer2 } from "lucide-react";
 
-export function GuideModal() {
-    const [isOpen, setIsOpen] = useState(false);
+export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     const [step, setStep] = useState(1);
 
+    // Reset step when opened
     useEffect(() => {
-        // Show only if not visited before (using localStorage)
-        const hasSeenGuide = localStorage.getItem("has-seen-guide");
-        if (!hasSeenGuide) {
-            setIsOpen(true);
-        }
-    }, []);
+        if (isOpen) setStep(1);
+    }, [isOpen]);
 
     const handleNext = () => {
         if (step === 1) {
             setStep(2);
         } else {
-            handleClose();
+            onClose();
         }
-    };
-
-    const handleClose = () => {
-        setIsOpen(false);
-        localStorage.setItem("has-seen-guide", "true");
     };
 
     if (!isOpen) return null;
@@ -36,7 +28,7 @@ export function GuideModal() {
 
                 {/* Close Button */}
                 <button
-                    onClick={handleClose}
+                    onClick={onClose}
                     className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
                 >
                     <X className="w-5 h-5" />
@@ -44,8 +36,8 @@ export function GuideModal() {
 
                 {/* Progress Indicators */}
                 <div className="flex justify-center space-x-2 mb-8">
-                    <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 1 ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200'}`}></div>
-                    <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 2 ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200'}`}></div>
+                    <div className={`h - 1.5 rounded - full transition - all duration - 300 ${ step === 1 ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200' } `}></div>
+                    <div className={`h - 1.5 rounded - full transition - all duration - 300 ${ step === 2 ? 'w-8 bg-indigo-600' : 'w-2 bg-gray-200' } `}></div>
                 </div>
 
                 {/* Content - Step 1 */}

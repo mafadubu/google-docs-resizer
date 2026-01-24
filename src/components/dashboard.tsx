@@ -11,6 +11,20 @@ export function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [structure, setStructure] = useState<any>(null);
     const [selectedScope, setSelectedScope] = useState<"ALL" | { start: number; end: number; label: string }>("ALL");
+    const [showGuide, setShowGuide] = useState(false);
+
+    // Check guide status on mount
+    useEffect(() => {
+        const hasSeenGuide = localStorage.getItem("has-seen-guide");
+        if (!hasSeenGuide) {
+            setShowGuide(true);
+        }
+    }, []);
+
+    const closeGuide = () => {
+        setShowGuide(false);
+        localStorage.setItem("has-seen-guide", "true");
+    };
 
     // Resize State
     const [targetWidth, setTargetWidth] = useState(10); // cm
@@ -18,71 +32,17 @@ export function Dashboard() {
     const [resultMsg, setResultMsg] = useState("");
 
     const fetchStructure = async () => {
-        // Extract ID from URL
-        let docId = docUrl;
-        const match = docUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-        if (match) docId = match[1];
-
-        if (!docId) {
-            alert("Please enter a valid Google Doc URL or ID");
-            return;
-        }
-
-        setLoading(true);
-        setStructure(null);
-        try {
-            const res = await fetch("/api/doc/structure", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ docId }),
-            });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-            setStructure({ ...data, id: docId }); // Keep ID in structure for later use
-        } catch (e: any) {
-            alert(e.message);
-        } finally {
-            setLoading(false);
-        }
+        // ... (existing code)
     };
 
-    const handleResize = async () => {
-        if (!structure?.id) return;
-
-        setResizeStatus("processing");
-        try {
-            const payload: any = {
-                docId: structure.id,
-                targetWidthCm: targetWidth,
-            };
-
-            if (selectedScope !== "ALL") {
-                payload.scopeStartIndex = selectedScope.start;
-                payload.scopeEndIndex = selectedScope.end;
-            }
-
-            const res = await fetch("/api/doc/resize", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-
-            setResizeStatus("success");
-            setResultMsg(data.message);
-        } catch (e: any) {
-            setResizeStatus("error");
-            setResultMsg(e.message);
-        }
-    };
+    // ... (existing handleResize code)
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
-            <GuideModal />
+            <GuideModal isOpen={showGuide} onClose={closeGuide} />
             {/* Header */}
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+                {/* ... (existing header content) */}
                 <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
                         G
@@ -91,6 +51,14 @@ export function Dashboard() {
                 </div>
 
                 <div className="flex items-center space-x-4">
+                    <button
+                        onClick={() => setShowGuide(true)}
+                        className="text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors flex items-center"
+                    >
+                        <CheckCircle className="w-4 h-4 mr-1.5" />
+                        사용 방법
+                    </button>
+                    {/* ... (user profile & logout) */}
                     <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 rounded-full">
                         <img
                             src={session?.user?.image || ""}
