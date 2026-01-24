@@ -403,9 +403,8 @@ export function Dashboard() {
                                         )}
                                     </button>
 
-                                    {resultMsg && (
-                                        <div className={`mt-4 p-3 rounded-lg text-sm flex items-center ${resizeStatus === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                                            {resizeStatus === 'success' && <CheckCircle className="w-4 h-4 mr-2" />}
+                                    {resultMsg && resizeStatus === 'error' && (
+                                        <div className="mt-4 p-3 rounded-lg text-sm flex items-center bg-red-50 text-red-700">
                                             {resultMsg}
                                         </div>
                                     )}
