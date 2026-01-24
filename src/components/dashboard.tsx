@@ -3,6 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
 import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck } from "lucide-react";
+import { GuideModal } from "@/components/guide-modal";
 
 export function Dashboard() {
     const { data: session } = useSession();
@@ -79,6 +80,7 @@ export function Dashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+            <GuideModal />
             {/* Header */}
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
                 <div className="flex items-center space-x-3">

@@ -24,7 +24,7 @@ export const incrementStats = async (count: number) => {
 }
 
 export const getStats = async () => {
-    if (!redis) return { total: 1240, today: 50 }; // Default fallback for dev
+    if (!redis) return { total: 0, today: 0 }; // Default fallback (0) if not connected
 
     const today = new Date().toISOString().split('T')[0];
 
@@ -35,11 +35,11 @@ export const getStats = async () => {
         ]);
 
         return {
-            total: total || 1240,
-            today: todayCount || 50
+            total: total || 0,
+            today: todayCount || 0
         };
     } catch (e) {
         console.error("Redis Fetch Error:", e);
-        return { total: 1240, today: 50 };
+        return { total: 0, today: 0 };
     }
 }
