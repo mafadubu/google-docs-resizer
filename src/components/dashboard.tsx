@@ -47,7 +47,7 @@ export function Dashboard() {
                     <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
                         G
                     </div>
-                    <span className="font-bold text-lg tracking-tight">Docs Resizer</span>
+                    <span className="font-bold text-lg tracking-tight">Docs Resizer ✨</span>
                 </div>
 
                 <div className="flex items-center space-x-4">
