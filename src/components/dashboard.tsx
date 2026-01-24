@@ -322,14 +322,44 @@ export function Dashboard() {
                                         <div
                                             key={idx}
                                             onClick={() => {
-                                                if (isSelected) {
-                                                    setSelectedScopes(prev => prev.filter(s => s.start !== item.startIndex));
+                                                // 1. Identify all descendants (children, grandchildren, etc.)
+                                                const descendants: any[] = [];
+                                                const currentLevel = item.level;
+
+                                                for (let i = idx + 1; i < structure.items.length; i++) {
+                                                    const nextItem = structure.items[i];
+                                                    if (nextItem.level > currentLevel) {
+                                                        descendants.push(nextItem);
+                                                    } else {
+                                                        break; // Stop when we hit a sibling or parent
+                                                    }
+                                                }
+
+                                                // 2. Determine "Toggle On" or "Toggle Off"
+                                                // If the clicked item itself is selected, we assume we want to UNSELECT it and all children.
+                                                // If it's NOT selected, we SELECT it and all children.
+                                                const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
+
+                                                // Helper to create scope object
+                                                const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
+
+                                                if (isCurrentlySelected) {
+                                                    // Unselect Parent AND Descendants
+                                                    const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
+                                                    setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
                                                 } else {
-                                                    setSelectedScopes(prev => [...prev, {
-                                                        start: item.startIndex,
-                                                        end: item.scopeEndIndex,
-                                                        label: item.title
-                                                    }]);
+                                                    // Select Parent AND Descendants (avoiding duplicates)
+                                                    // We filter out descendants that might already be selected to avoid duplicates, although React state updates usually handle uniqueness if we are careful.
+                                                    // Actually, easiest is to filter out overlap then add.
+
+                                                    const newScopes = [toScope(item), ...descendants.map(toScope)];
+
+                                                    setSelectedScopes(prev => {
+                                                        // Remove any existing entries of these items (to prevent duplicates) then add them
+                                                        const existingStarts = new Set(newScopes.map(s => s.start));
+                                                        const cleanPrev = prev.filter(s => !existingStarts.has(s.start));
+                                                        return [...cleanPrev, ...newScopes];
+                                                    });
                                                 }
                                             }}
                                             className={`
