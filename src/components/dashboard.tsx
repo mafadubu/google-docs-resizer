@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
+import { WarningModal } from "@/components/warning-modal";
 import { AnimatePresence, motion } from "framer-motion";
 
 export function Dashboard() {
@@ -115,6 +116,7 @@ export function Dashboard() {
         <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
             <AnimatePresence>
                 {showGuide && <GuideModal isOpen={showGuide} onClose={closeGuide} />}
+                {showWarning && <WarningModal isOpen={showWarning} onClose={() => setShowWarning(false)} message={warningMsg} />}
             </AnimatePresence>
             {/* Header */}
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
@@ -224,11 +226,23 @@ export function Dashboard() {
                                     <input
                                         type="text"
                                         value={docUrl}
-                                        onChange={(e) => setDocUrl(e.target.value)}
+                                        onChange={(e) => {
+                                            setDocUrl(e.target.value);
+                                            setIsUrlInvalid(false);
+                                        }}
+                                        disabled={!!structure}
                                         placeholder="https://docs.google.com/document/d/..."
-                                        className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all text-sm"
+                                        className={`
+                                            w-full pl-4 pr-10 py-3 rounded-xl focus:ring-2 outline-none transition-all text-sm
+                                            ${structure
+                                                ? 'bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed'
+                                                : isUrlInvalid
+                                                    ? 'bg-red-50 border-2 border-red-300 focus:ring-red-200 text-red-900 placeholder-red-300'
+                                                    : 'bg-gray-50 border border-gray-200 focus:ring-indigo-500 focus:border-transparent'
+                                            }
+                                        `}
                                     />
-                                    {docUrl && (
+                                    {docUrl && !structure && (
                                         <button
                                             onClick={() => setDocUrl("")}
                                             className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
@@ -238,13 +252,39 @@ export function Dashboard() {
                                     )}
                                 </div>
                             </div>
-                            <button
-                                onClick={fetchStructure}
-                                disabled={loading || !docUrl}
-                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
-                            >
-                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "문서 불러오기"}
-                            </button>
+
+                            {structure ? (
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        disabled
+                                        className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-semibold shadow-lg transition-all flex items-center justify-center cursor-default opacity-90"
+                                    >
+                                        <CheckCircle className="w-5 h-5 mr-2" />
+                                        선택 완료
+                                    </button>
+
+                                    <div className="relative group">
+                                        <button
+                                            onClick={handleReset}
+                                            className="w-12 h-12 bg-white border-2 border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl flex items-center justify-center transition-all"
+                                        >
+                                            <LogOut className="w-5 h-5 rotate-180" />
+                                        </button>
+                                        {/* Tooltip */}
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                            URL 다시 입력하기
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={fetchStructure}
+                                    disabled={loading || !docUrl}
+                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
+                                >
+                                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "문서 불러오기"}
+                                </button>
+                            )}
                         </div>
                     </div>
 
