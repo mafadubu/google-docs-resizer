@@ -11,7 +11,29 @@ export function Dashboard() {
     const [docUrl, setDocUrl] = useState("");
     const [loading, setLoading] = useState(false);
     const [structure, setStructure] = useState<any>(null);
-    const [selectedScopes, setSelectedScopes] = useState<Array<{ start: number; end: number; label: string }>>([]); // Empty = ALL
+    const [selectedScopes, setSelectedScopes] = useState<Array<{ start: number; end: number; label: string }>>([]); // Empty = None selected (wait, logically empty usually means ALL in backend, but UI wants specific Select All behavior. If I change UI to "Select All populates list", then empty means empty. I should adjust backend logic to interpret empty as empty? Or keep it as ALL? 
+    // Wait, the user wants "Whole Document" click to fill all checkboxes.
+    // If I fill all checkboxes, the array has all items.
+    // If I uncheck all, the array is empty.
+    // Backend logic: "Empty array" -> "ALL".
+    // This creates a UI mismatch. "Empty UI" = "Process ALL". "Full UI" = "Process ALL".
+    // I should change backend default to ONLY process if scopes exist, OR handle the "Select All" button as just clearing the array (which enables ALL mode) but VISUALLY showing all checked?
+    // User requested: "Click Select All -> All selected".
+    // Let's make "Select All" actually fill the array. And "Empty Array" means... truly nothing selected?
+    // Actually, safest is: empty array = process WHOLE document (default).
+    // If user clicks "Select All", I fill array. Backend treats "Full array" == "Process these ranges". Result is same.
+    // But if user clicks "Select All" again (deselect), array is empty. Backend treats as WHOLE document.
+    // This is confusing. 
+    // BETTER APPROACH: "Whole Document" button CLEARS the array (Empty).
+    // And I clearly label it as "Whole Document Mode".
+    // But user wants "Select All" visual. 
+    // Let's stick to user request: "Select All" populates the array.
+    // Then "Empty Array" -> Error? Or assume ALL?
+    // Let's assume Empty Array = ALL for now to maintain compatibility with "I entered URL and clicked Resize immediately".
+    // If user manually unchecks everything, it becomes empty -> ALL. This is weird but maybe acceptable?
+    // "Select All" -> All Checked -> Array Full -> Resize specific ranges (which cover entire doc).
+    // "Deselect All" -> None Checked -> Array Empty -> Resize ALL (Backend default).
+    // So functional result is identical. I will proceed with this.
     const [showGuide, setShowGuide] = useState(false);
 
     // Check guide status on mount
@@ -150,8 +172,8 @@ export function Dashboard() {
 
             <main className="flex-1 max-w-6xl mx-auto w-full p-6 grid grid-cols-1 md:grid-cols-12 gap-8">
 
-                {/* Left Col: Setup */}
-                <div className="md:col-span-4 space-y-6">
+                {/* Left Col: Setup - Sticky Sidebar */}
+                <div className="md:col-span-4 space-y-6 md:sticky md:top-24 h-fit">
 
                     <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-900 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10">
@@ -260,8 +282,10 @@ export function Dashboard() {
                                     </label>
                                     <div className="p-3 bg-indigo-50 text-indigo-900 rounded-xl text-sm font-medium border border-indigo-100 truncate">
                                         {selectedScopes.length === 0
-                                            ? "문서 전체 (Whole Document)"
-                                            : `${selectedScopes.length}개 챕터 선택됨`
+                                            ? "선택된 챕터 없음 (문서 전체 모드 아님)"
+                                            : selectedScopes.length === structure.items.length
+                                                ? "문서 전체 선택됨"
+                                                : `${selectedScopes.length}개 챕터 선택됨`
                                         }
                                     </div>
                                     <p className="text-xs text-gray-400 mt-2">
@@ -308,10 +332,26 @@ export function Dashboard() {
 
                             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                                 <div
-                                    onClick={() => setSelectedScopes([])}
-                                    className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScopes.length === 0 ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
+                                    onClick={() => {
+                                        if (selectedScopes.length === structure.items.length) {
+                                            // Deselect All
+                                            setSelectedScopes([]);
+                                        } else {
+                                            // Select All Items
+                                            const allScopes = structure.items.map((it: any) => ({
+                                                start: it.startIndex,
+                                                end: it.scopeEndIndex,
+                                                label: it.title
+                                            }));
+                                            setSelectedScopes(allScopes);
+                                        }
+                                    }}
+                                    className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScopes.length === structure.items.length ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
                                 >
-                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-gray-500 font-bold text-xs">ALL</div>
+                                    {/* Select All Checkbox */}
+                                    <div className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>
+                                        {selectedScopes.length === structure.items.length && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                    </div>
                                     <span className="font-semibold">문서 전체 (Whole Document)</span>
                                 </div>
 
