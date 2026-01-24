@@ -152,6 +152,8 @@ export function Dashboard() {
 
             setResizeStatus("success");
             setResultMsg(data.message);
+            setSuccessMsg(data.message); // Show popup
+            setShowSuccess(true);
         } catch (e: any) {
             setResizeStatus("error");
             setResultMsg(e.message);
