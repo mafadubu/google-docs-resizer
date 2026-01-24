@@ -11,7 +11,7 @@ export function Dashboard() {
     const [docUrl, setDocUrl] = useState("");
     const [loading, setLoading] = useState(false);
     const [structure, setStructure] = useState<any>(null);
-    const [selectedScope, setSelectedScope] = useState<"ALL" | { start: number; end: number; label: string }>("ALL");
+    const [selectedScopes, setSelectedScopes] = useState<Array<{ start: number; end: number; label: string }>>([]); // Empty = ALL
     const [showGuide, setShowGuide] = useState(false);
 
     // Check guide status on mount
@@ -69,12 +69,8 @@ export function Dashboard() {
             const payload: any = {
                 docId: structure.id,
                 targetWidthCm: targetWidth,
+                scopes: selectedScopes.length > 0 ? selectedScopes : undefined
             };
-
-            if (selectedScope !== "ALL") {
-                payload.scopeStartIndex = selectedScope.start;
-                payload.scopeEndIndex = selectedScope.end;
-            }
 
             const res = await fetch("/api/doc/resize", {
                 method: "POST",
@@ -263,10 +259,13 @@ export function Dashboard() {
                                         적용 범위 (Scope)
                                     </label>
                                     <div className="p-3 bg-indigo-50 text-indigo-900 rounded-xl text-sm font-medium border border-indigo-100 truncate">
-                                        {selectedScope === "ALL" ? "문서 전체 (Whole Document)" : selectedScope.label}
+                                        {selectedScopes.length === 0
+                                            ? "문서 전체 (Whole Document)"
+                                            : `${selectedScopes.length}개 챕터 선택됨`
+                                        }
                                     </div>
                                     <p className="text-xs text-gray-400 mt-2">
-                                        * 오른쪽 목록에서 챕터를 클릭하면 해당 구간만 선택됩니다.
+                                        * 오른쪽 목록에서 챕터를 클릭하여 <strong>다중 선택</strong>할 수 있습니다.
                                     </p>
                                 </div>
 
@@ -309,42 +308,55 @@ export function Dashboard() {
 
                             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                                 <div
-                                    onClick={() => setSelectedScope("ALL")}
-                                    className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScope === 'ALL' ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
+                                    onClick={() => setSelectedScopes([])}
+                                    className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScopes.length === 0 ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
                                 >
                                     <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3 text-gray-500 font-bold text-xs">ALL</div>
                                     <span className="font-semibold">문서 전체 (Whole Document)</span>
                                 </div>
 
-                                {structure.items.map((item: any, idx: number) => (
-                                    <div
-                                        key={idx}
-                                        onClick={() => setSelectedScope({
-                                            start: item.startIndex,
-                                            end: item.scopeEndIndex,
-                                            label: item.title
-                                        })}
-                                        className={`
-                        group p-3 rounded-xl cursor-pointer transition-all mb-1
-                        ${selectedScope !== 'ALL' && selectedScope.start === item.startIndex
-                                                ? 'bg-indigo-50 border-indigo-200 border text-indigo-900'
-                                                : 'hover:bg-gray-50 border border-transparent text-gray-700'
-                                            }
-                      `}
-                                        style={{ marginLeft: `${(item.level - 1) * 20}px` }}
-                                    >
-                                        <div className="flex items-center">
-                                            <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
-                                                H{item.level}
-                                            </span>
-                                            <span className={item.level === 1 ? 'font-bold' : 'font-medium'}>
-                                                {item.title}
-                                            </span>
+                                {structure.items.map((item: any, idx: number) => {
+                                    const isSelected = selectedScopes.some(s => s.start === item.startIndex);
 
-                                            {/* Optional: Add badge if images detected in this section (needs backend support) */}
+                                    return (
+                                        <div
+                                            key={idx}
+                                            onClick={() => {
+                                                if (isSelected) {
+                                                    setSelectedScopes(prev => prev.filter(s => s.start !== item.startIndex));
+                                                } else {
+                                                    setSelectedScopes(prev => [...prev, {
+                                                        start: item.startIndex,
+                                                        end: item.scopeEndIndex,
+                                                        label: item.title
+                                                    }]);
+                                                }
+                                            }}
+                                            className={`
+                                            group p-3 rounded-xl cursor-pointer transition-all mb-1 select-none
+                                            ${isSelected
+                                                    ? 'bg-indigo-50 border-indigo-200 border text-indigo-900'
+                                                    : 'hover:bg-gray-50 border border-transparent text-gray-700'
+                                                }
+                                        `}
+                                            style={{ marginLeft: `${(item.level - 1) * 20}px` }}
+                                        >
+                                            <div className="flex items-center">
+                                                {/* Checkbox indicator */}
+                                                <div className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>
+                                                    {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                </div>
+
+                                                <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
+                                                    H{item.level}
+                                                </span>
+                                                <span className={item.level === 1 ? 'font-bold' : 'font-medium'}>
+                                                    {item.title}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
 
                                 {structure.items.length === 0 && (
                                     <div className="p-8 text-center text-gray-400">

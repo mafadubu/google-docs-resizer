@@ -121,9 +121,11 @@ export const calculateImageResizeRequests = (
 
     // Helper to check scope
     const isInScope = (startIndex: number) => {
-        if (typeof options.scopeStartIndex === 'number' && typeof options.scopeEndIndex === 'number') {
-            return startIndex >= options.scopeStartIndex && startIndex < options.scopeEndIndex;
+        // If scopes is provided and not empty, check if index is in ANY range
+        if (options.scopes && options.scopes.length > 0) {
+            return options.scopes.some(scope => startIndex >= scope.start && startIndex < scope.end);
         }
+        // If no scopes provided, default to ALL
         return true;
     };
 
