@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 import { WarningModal } from "@/components/warning-modal";
+import { SuccessModal } from "@/components/success-modal";
 import { AnimatePresence, motion } from "framer-motion";
 
 export function Dashboard() {
@@ -39,6 +40,8 @@ export function Dashboard() {
 
     const [showWarning, setShowWarning] = useState(false);
     const [warningMsg, setWarningMsg] = useState("");
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [successMsg, setSuccessMsg] = useState("");
     const [isUrlInvalid, setIsUrlInvalid] = useState(false);
 
     // UI State: Controls whether the input is locked (Document Loaded state)
@@ -117,6 +120,8 @@ export function Dashboard() {
             setStructure({ ...data, id: docId });
             setIsLoaded(true);
             setSelectedScopes([]); // Clear previous selections because it's a new doc
+            setSuccessMsg("문서 목차를 성공적으로 불러왔습니다!");
+            setShowSuccess(true);
 
         } catch (e: any) {
             alert(e.message);
