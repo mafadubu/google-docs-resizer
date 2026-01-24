@@ -108,29 +108,31 @@ export function Dashboard() {
                     <span className="font-bold text-lg tracking-tight">Docs Resizer ✨</span>
                 </div>
 
-                <div className="flex items-center space-x-4 relative">
-                    {/* Placeholder to prevent layout shift */}
-                    {showGuide && (
-                        <div className="opacity-0 px-3 py-1.5 flex items-center">
+                <div className="flex items-center space-x-4">
+                    {/* Help Button Wrapper - Isolates layout context */}
+                    <div className="relative">
+                        {/* 1. Invisible Placeholder (Always there to reserve space) */}
+                        <div className="opacity-0 px-3 py-1.5 flex items-center pointer-events-none select-none" aria-hidden="true">
                             <div className="w-4 h-4 mr-1.5" />
                             사용 방법
                         </div>
-                    )}
 
-                    <AnimatePresence>
-                        {!showGuide && (
-                            <motion.button
-                                layoutId="guide-modal-trigger"
-                                onClick={() => setShowGuide(true)}
-                                className="absolute right-0 top-0 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors flex items-center z-10"
-                            >
-                                <motion.span layoutId="guide-icon" className="flex items-center">
-                                    <CheckCircle className="w-4 h-4 mr-1.5" />
-                                </motion.span>
-                                <motion.span layoutId="guide-text">사용 방법</motion.span>
-                            </motion.button>
-                        )}
-                    </AnimatePresence>
+                        {/* 2. Floating Animated Button */}
+                        <AnimatePresence>
+                            {!showGuide && (
+                                <motion.button
+                                    layoutId="guide-modal-trigger"
+                                    onClick={() => setShowGuide(true)}
+                                    className="absolute inset-0 w-full h-full text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors flex items-center z-10"
+                                >
+                                    <motion.span layoutId="guide-icon" className="flex items-center">
+                                        <CheckCircle className="w-4 h-4 mr-1.5" />
+                                    </motion.span>
+                                    <motion.span layoutId="guide-text">사용 방법</motion.span>
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
+                    </div>
                     {/* ... (user profile & logout) */}
                     <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 rounded-full">
                         <img
