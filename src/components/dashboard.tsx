@@ -215,6 +215,10 @@ export function Dashboard() {
 
             <main className="flex-1 max-w-6xl mx-auto w-full p-6 grid grid-cols-1 md:grid-cols-12 gap-8">
 
+                <AnimatePresence>
+                    {showSuccess && <SuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} message={successMsg} />}
+                </AnimatePresence>
+
                 {/* Left Col: Setup - Sticky Sidebar */}
                 <div className="md:col-span-4 space-y-6 md:sticky md:top-24 h-fit">
 
@@ -255,78 +259,76 @@ export function Dashboard() {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                        <h2 className="text-xl font-bold mb-4 flex items-center">
-                            <FileText className="w-5 h-5 mr-2 text-indigo-500" />
-                            1. 문서 선택
-                        </h2>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">문서 URL / ID</label>
-                                <div className="mt-2 relative">
-                                    <input
-                                        type="text"
-                                        value={docUrl}
-                                        onChange={(e) => {
-                                            setDocUrl(e.target.value);
-                                            setIsUrlInvalid(false);
-                                        }}
-                                        disabled={isLoaded}
-                                        placeholder="https://docs.google.com/document/d/..."
-                                        className={`
-                                            w-full pl-4 pr-10 py-3 rounded-xl focus:ring-2 outline-none transition-all text-sm
-                                            ${isLoaded
-                                                ? 'bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed'
-                                                : isUrlInvalid
-                                                    ? 'bg-red-50 border-2 border-red-300 focus:ring-red-200 text-red-900 placeholder-red-300'
-                                                    : 'bg-gray-50 border border-gray-200 focus:ring-indigo-500 focus:border-transparent'
-                                            }
-                                        `}
-                                    />
-                                    {docUrl && !isLoaded && (
-                                        <button
-                                            onClick={() => setDocUrl("")}
-                                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                                        >
-                                            ×
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {isLoaded ? (
-                                <div className="flex items-center space-x-2">
-                                    <button
-                                        disabled
-                                        className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-semibold shadow-lg transition-all flex items-center justify-center cursor-default opacity-90"
-                                    >
-                                        <CheckCircle className="w-5 h-5 mr-2" />
-                                        선택 완료
-                                    </button>
-
-                                    <div className="relative group">
-                                        <button
-                                            onClick={handleReset}
-                                            className="w-12 h-12 bg-white border-2 border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl flex items-center justify-center transition-all"
-                                        >
-                                            <LogOut className="w-5 h-5 rotate-180" />
-                                        </button>
-                                        {/* Tooltip */}
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                            URL 다시 입력하기
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={fetchStructure}
-                                    disabled={loading || !docUrl}
-                                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden transition-[height]">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-xl font-bold flex items-center">
+                                <FileText className="w-5 h-5 mr-2 text-indigo-500" />
+                                1. 문서 선택
+                            </h2>
+                            {isLoaded && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 20 }}
                                 >
-                                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "문서 불러오기"}
-                                </button>
+                                    <button
+                                        onClick={handleReset}
+                                        className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
+                                    >
+                                        <RefreshCw className="w-3 h-3 mr-1.5" />
+                                        URL 다시 입력하기
+                                    </button>
+                                </motion.div>
                             )}
                         </div>
+
+                        <AnimatePresence>
+                            {!isLoaded && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="space-y-4 pt-2">
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">문서 URL / ID</label>
+                                            <div className="mt-2 relative">
+                                                <input
+                                                    type="text"
+                                                    value={docUrl}
+                                                    onChange={handleUrlChange}
+                                                    placeholder="https://docs.google.com/document/d/..."
+                                                    className={`
+                                                        w-full pl-4 pr-10 py-3 rounded-xl focus:ring-2 outline-none transition-all text-sm
+                                                        ${isUrlInvalid
+                                                            ? 'bg-red-50 border-2 border-red-300 focus:ring-red-200 text-red-900 placeholder-red-300'
+                                                            : 'bg-gray-50 border border-gray-200 focus:ring-indigo-500 focus:border-transparent'
+                                                        }
+                                                    `}
+                                                />
+                                                {docUrl && (
+                                                    <button
+                                                        onClick={() => setDocUrl("")}
+                                                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={fetchStructure}
+                                            disabled={loading || !docUrl}
+                                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
+                                        >
+                                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "문서 불러오기"}
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {structure && (
