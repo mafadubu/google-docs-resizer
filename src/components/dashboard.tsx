@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 
