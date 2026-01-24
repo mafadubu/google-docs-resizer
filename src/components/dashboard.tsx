@@ -32,10 +32,65 @@ export function Dashboard() {
     const [resultMsg, setResultMsg] = useState("");
 
     const fetchStructure = async () => {
-        // ... (existing code)
+        // Extract ID from URL
+        let docId = docUrl;
+        const match = docUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (match) docId = match[1];
+
+        if (!docId) {
+            alert("Please enter a valid Google Doc URL or ID");
+            return;
+        }
+
+        setLoading(true);
+        setStructure(null);
+        try {
+            const res = await fetch("/api/doc/structure", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ docId }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            setStructure({ ...data, id: docId }); // Keep ID in structure for later use
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // ... (existing handleResize code)
+    const handleResize = async () => {
+        if (!structure?.id) return;
+
+        setResizeStatus("processing");
+        try {
+            const payload: any = {
+                docId: structure.id,
+                targetWidthCm: targetWidth,
+            };
+
+            if (selectedScope !== "ALL") {
+                payload.scopeStartIndex = selectedScope.start;
+                payload.scopeEndIndex = selectedScope.end;
+            }
+
+            const res = await fetch("/api/doc/resize", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            setResizeStatus("success");
+            setResultMsg(data.message);
+        } catch (e: any) {
+            setResizeStatus("error");
+            setResultMsg(e.message);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
