@@ -355,14 +355,32 @@ export function Dashboard() {
                                                 initial={{ opacity: 0, y: 10, scale: 0.8 }}
                                                 animate={{
                                                     opacity: 1,
-                                                    y: -35,
+                                                    y: -70, // Increased height offset for larger visual
                                                     scale: 1,
                                                     left: `calc(${((targetWidth - 5) / (20 - 5)) * 100}% + (${8 - ((targetWidth - 5) / (20 - 5)) * 16}px))`
                                                 }}
-                                                className="absolute top-0 transform -translate-x-1/2 bg-gray-900 text-white text-xs font-bold py-1 px-2.5 rounded-lg shadow-lg pointer-events-none whitespace-nowrap z-10 hidden group-hover:block group-active:block"
+                                                className="absolute top-0 transform -translate-x-1/2 bg-white border border-gray-200 p-2 rounded-xl shadow-xl pointer-events-none z-20 hidden group-hover:block group-active:block"
                                             >
-                                                {targetWidth}cm
-                                                <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45" />
+                                                <div className="flex flex-col items-center space-y-1">
+                                                    {/* Mini Page Representation (Aspect Ratio roughly A4) */}
+                                                    <div className="w-16 h-20 bg-gray-50 border border-gray-100 relative shadow-inner overflow-hidden flex items-center justify-center">
+                                                        {/* Image Width Representation */}
+                                                        {/* Assuming max width is ~21cm (A4 width without margins) or just full page width */}
+                                                        {/* For visualization, let's say 21cm = 100% of this mini box */}
+                                                        <motion.div
+                                                            className="h-12 bg-indigo-500/20 border border-indigo-500 rounded-sm"
+                                                            animate={{ width: `${(targetWidth / 21) * 100}%` }}
+                                                        />
+                                                        {/* Center content placeholder */}
+                                                        <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                                                            <div className="w-[1px] h-full bg-gray-300 dashed" />
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-gray-500 mt-1">{targetWidth}cm</span>
+                                                </div>
+
+                                                {/* Arrow */}
+                                                <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b border-r border-gray-200 rotate-45" />
                                             </motion.div>
 
                                             <input
