@@ -41,6 +41,10 @@ export function Dashboard() {
     const [warningMsg, setWarningMsg] = useState("");
     const [isUrlInvalid, setIsUrlInvalid] = useState(false);
 
+    // UI State: Controls whether the input is locked (Document Loaded state)
+    // We separate this from 'structure' so we can Reset the input without clearing the screen
+    const [isLoaded, setIsLoaded] = useState(false);
+
     // Check guide status on mount
     useEffect(() => {
         const hasSeenGuide = localStorage.getItem("has-seen-guide");
@@ -68,12 +72,14 @@ export function Dashboard() {
     };
 
     const handleReset = () => {
-        setStructure(null);
-        setDocUrl("");
+        // Only reset the Input State, keeping the structure visible ("Ghost" mode)
+        setIsLoaded(false);
+        setDocUrl(""); // Clear input so they can type new one
         setResizeStatus("idle");
         setResultMsg("");
         setIsUrlInvalid(false);
         setWarningMsg("");
+        // NOTE: We do NOT setStructure(null) here. The old outline stays until new one loads!
     };
 
     const fetchStructure = async () => {
@@ -97,7 +103,7 @@ export function Dashboard() {
         }
 
         setLoading(true);
-        setStructure(null);
+        // setStructure(null); // REMOVED: Don't clear old structure while loading new one
         try {
             const res = await fetch("/api/doc/structure", {
                 method: "POST",
@@ -106,7 +112,12 @@ export function Dashboard() {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            setStructure({ ...data, id: docId }); // Keep ID in structure for later use
+
+            // On Success: Replace structure & Lock input
+            setStructure({ ...data, id: docId });
+            setIsLoaded(true);
+            setSelectedScopes([]); // Clear previous selections because it's a new doc
+
         } catch (e: any) {
             alert(e.message);
         } finally {
@@ -260,11 +271,11 @@ export function Dashboard() {
                                             setDocUrl(e.target.value);
                                             setIsUrlInvalid(false);
                                         }}
-                                        disabled={!!structure}
+                                        disabled={isLoaded}
                                         placeholder="https://docs.google.com/document/d/..."
                                         className={`
                                             w-full pl-4 pr-10 py-3 rounded-xl focus:ring-2 outline-none transition-all text-sm
-                                            ${structure
+                                            ${isLoaded
                                                 ? 'bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed'
                                                 : isUrlInvalid
                                                     ? 'bg-red-50 border-2 border-red-300 focus:ring-red-200 text-red-900 placeholder-red-300'
@@ -272,7 +283,7 @@ export function Dashboard() {
                                             }
                                         `}
                                     />
-                                    {docUrl && !structure && (
+                                    {docUrl && !isLoaded && (
                                         <button
                                             onClick={() => setDocUrl("")}
                                             className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
@@ -283,7 +294,7 @@ export function Dashboard() {
                                 </div>
                             </div>
 
-                            {structure ? (
+                            {isLoaded ? (
                                 <div className="flex items-center space-x-2">
                                     <button
                                         disabled
