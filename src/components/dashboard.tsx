@@ -100,6 +100,35 @@ export function Dashboard() {
         if (isUrlInvalid) setIsUrlInvalid(false);
     };
 
+    // Keyboard Shortcut (Ctrl + [)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === '[') {
+                if (activeChapterId) {
+                    e.preventDefault();
+                    handleBackToOutline();
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activeChapterId]);
+
+    const handleBackToOutline = () => {
+        const currentId = activeChapterId;
+        setActiveChapterId(null);
+
+        // Use timeout to ensure DOM is updated before scrolling
+        setTimeout(() => {
+            if (currentId) {
+                const element = document.getElementById(`chapter-${currentId}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }, 100);
+    };
+
     const handleReset = () => {
         // Only reset the Input State, keeping the structure visible ("Ghost" mode)
         setIsLoaded(false);
@@ -198,11 +227,20 @@ export function Dashboard() {
             {/* Header */}
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
                 {/* ... (existing header content) */}
-                <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
+                <div
+                    className="flex items-center space-x-3 cursor-pointer group"
+                    onClick={() => {
+                        if (activeChapterId) handleBackToOutline();
+                        else {
+                            // Scroll to top of page if already in outline
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    }}
+                >
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">
                         G
                     </div>
-                    <span className="font-bold text-lg tracking-tight">Docs Resizer ✨</span>
+                    <span className="font-bold text-lg tracking-tight group-hover:text-indigo-600 transition-colors">Docs Resizer ✨</span>
                 </div>
 
                 <div className="flex items-center space-x-4">
@@ -470,9 +508,9 @@ export function Dashboard() {
                 {/* Right Col: Outline */}
                 <div className="md:col-span-8">
                     {structure ? (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full min-h-[500px] flex flex-col relative">
-                            {/* Persistent Sticky Header */}
-                            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-full min-h-[500px] flex flex-col relative">
+                            {/* Persistent Sticky Header - Fix: Sticky top mapping to viewport */}
+                            <div className="sticky top-24 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl">
                                 <div className="p-6">
                                     <h2 className="text-lg font-bold text-gray-900">{structure.title}</h2>
                                     <p className="text-sm text-gray-500">
@@ -492,7 +530,7 @@ export function Dashboard() {
                                         >
                                             <div className="flex items-center justify-between">
                                                 <button
-                                                    onClick={() => setActiveChapterId(null)}
+                                                    onClick={handleBackToOutline}
                                                     className="flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-2 rounded-xl transition-all hover:scale-105"
                                                 >
                                                     <ChevronLeft className="w-4 h-4 mr-1" />
@@ -576,7 +614,7 @@ export function Dashboard() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                <AnimatePresence mode="wait">
+                                <AnimatePresence>
                                     {activeChapterId ? (
                                         <motion.div
                                             key="gallery"
@@ -774,6 +812,7 @@ export function Dashboard() {
                                                 return (
                                                     <motion.div
                                                         key={item.id || idx}
+                                                        id={`chapter-${item.id}`}
                                                         layoutId={`chapter-${item.id}`}
                                                         className={`
                                                         group p-3 rounded-xl cursor-pointer transition-all mb-1 select-none flex items-center justify-between
@@ -789,9 +828,8 @@ export function Dashboard() {
                                                             onClick={() => {
                                                                 // Clicking the text opens the gallery
                                                                 setActiveChapterId(item.id);
-                                                                // Scroll to top of right pane
-                                                                const pane = document.querySelector('.custom-scrollbar');
-                                                                if (pane) pane.scrollTop = 0;
+                                                                // Scroll to top of page/right pane
+                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
                                                             }}
                                                         >
                                                             <div
