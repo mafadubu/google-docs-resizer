@@ -347,26 +347,22 @@ export function Dashboard() {
                                                 return (
                                                     <div key={item.id} className="bg-indigo-50/30 rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm">
                                                         <div className="space-y-1.5">
-                                                            {hierarchy && hierarchy.length > 1 && (
-                                                                <div className="flex flex-wrap items-center gap-1 opacity-50">
-                                                                    {hierarchy.slice(0, -1).map((step: string, sidx: number) => (
-                                                                        <React.Fragment key={sidx}><span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{step}</span><ChevronRight className="w-2 h-2 text-gray-300" /></React.Fragment>
-                                                                    ))}
-                                                                </div>
-                                                            )}
                                                             <div className="flex items-center space-x-2">
                                                                 <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full" />
-                                                                <div className="flex flex-col">
+                                                                <div className="flex flex-col min-w-0">
                                                                     {hierarchy && hierarchy.length > 1 && (
-                                                                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tight mb-0.5">
-                                                                            {hierarchy[hierarchy.length - 2]}
-                                                                        </span>
+                                                                        <div className="flex items-center space-x-1.5 opacity-60 mb-0.5">
+                                                                            <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded uppercase tracking-tighter">
+                                                                                {hierarchy[hierarchy.length - 2]}
+                                                                            </span>
+                                                                            <ChevronRight className="w-2 h-2 text-indigo-300" />
+                                                                        </div>
                                                                     )}
-                                                                    <h4 className={`font-black text-indigo-900 leading-tight text-[11px]`}>{item.title}</h4>
+                                                                    <h4 className={`font-black text-indigo-900 leading-tight truncate text-[11px]`}>{item.title}</h4>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className={`grid gap-3 ${isSummaryExpanded ? 'grid-cols-4' : 'grid-cols-4'}`}>
+                                                        <div className={`grid gap-3 grid-cols-4`}>
                                                             {chapterImages.map((img: any) => (
                                                                 <button key={img.id} onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))} className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-md">
                                                                     <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
@@ -440,24 +436,44 @@ export function Dashboard() {
                                                     }
                                                     return (
                                                         <div className="space-y-8">
-                                                            {subItems.map(item => (
-                                                                item.images.length > 0 && (
+                                                            {subItems.map(item => {
+                                                                // Filter images to only show in the most specific heading (lowest level/highest number)
+                                                                const filteredImages = item.images.filter((img: any) => {
+                                                                    const allParents = structure.items.filter((it: any) => it.images.some((i: any) => i.id === img.id));
+                                                                    const mostSpecificParent = allParents.sort((a: any, b: any) => (b.level || 0) - (a.level || 0))[0];
+                                                                    return mostSpecificParent.id === item.id;
+                                                                });
+
+                                                                return filteredImages.length > 0 && (
                                                                     <div key={item.id} className="space-y-4">
-                                                                        <div className="flex items-center space-x-2 border-b border-gray-50 pb-2"><span className="text-[10px] items-center flex font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-widest">H{item.level}</span><h4 className="text-xs font-bold text-gray-700">{item.title}</h4></div>
+                                                                        <div className="flex items-center space-x-2 border-b border-gray-50 pb-2">
+                                                                            <span className="text-[10px] items-center flex font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-widest">H{item.level}</span>
+                                                                            <h4 className="text-xs font-bold text-gray-700">{item.title}</h4>
+                                                                        </div>
                                                                         <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
-                                                                            {item.images.map((img: any, i: number) => {
+                                                                            {filteredImages.map((img: any) => {
                                                                                 const isImgSelected = selectedImageIds.includes(img.id);
+                                                                                // Find the index of this image in the original chapter's full list for the label
+                                                                                const originalIdx = item.images.findIndex((i: any) => i.id === img.id);
                                                                                 return (
                                                                                     <div key={img.id} onClick={() => { isImgSelected ? setSelectedImageIds(prev => prev.filter(id => id !== img.id)) : setSelectedImageIds(prev => [...prev, img.id]); }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
-                                                                                        <div className="relative aspect-video flex items-center justify-center p-3"><img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" /><div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>{isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}</div></div>
-                                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500"><span className="truncate">#{i + 1} ({img.type})</span>{isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}</div>
+                                                                                        <div className="relative aspect-video flex items-center justify-center p-3">
+                                                                                            <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
+                                                                                            <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
+                                                                                                {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
+                                                                                            <span className="truncate">#{originalIdx + 1} ({img.type})</span>
+                                                                                            {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
+                                                                                        </div>
                                                                                     </div>
                                                                                 );
                                                                             })}
                                                                         </div>
                                                                     </div>
-                                                                )
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     );
                                                 } else {
