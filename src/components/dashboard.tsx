@@ -554,55 +554,51 @@ export function Dashboard() {
                                         </button>
                                     </div>
                                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4">
-                                        {/* Grouped Selected Images */}
                                         {(() => {
-                                            const groups: Record<string, { path: string[], images: any[] }> = {};
-                                            selectedImageIds.forEach(id => {
-                                                const hierarchy = getImageHierarchy(id);
-                                                if (hierarchy) {
-                                                    const pathKey = hierarchy.join(" > ");
-                                                    if (!groups[pathKey]) groups[pathKey] = { path: hierarchy, images: [] };
+                                            if (!structure || selectedImageIds.length === 0) return <div className="text-center py-12 text-gray-300">
+                                                <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                                <p className="text-[11px] font-bold">선택된 이미지가 없습니다.</p>
+                                            </div>;
 
-                                                    // Find image data
-                                                    for (const item of structure.items) {
-                                                        const img = item.images.find((i: any) => i.id === id);
-                                                        if (img) {
-                                                            groups[pathKey].images.push(img);
-                                                            break;
-                                                        }
-                                                    }
-                                                }
+                                            return structure.items.map((item: any, idx: number) => {
+                                                const selectedImagesInItem = item.images.filter((img: any) => selectedImageIds.includes(img.id));
+                                                if (selectedImagesInItem.length === 0) return null;
+
+                                                const hierarchy = getImageHierarchy(selectedImagesInItem[0].id);
+                                                if (!hierarchy) return null;
+
+                                                return (
+                                                    <div key={item.id || idx} className="bg-indigo-50/30 rounded-2xl p-3 border border-indigo-100/50 space-y-3">
+                                                        <div className="space-y-1">
+                                                            <div className="flex flex-wrap items-center gap-1 opacity-60">
+                                                                {hierarchy.slice(0, -1).map((step: string, sidx: number) => (
+                                                                    <React.Fragment key={sidx}>
+                                                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{step}</span>
+                                                                        <ChevronRight className="w-2 h-2 text-gray-300" />
+                                                                    </React.Fragment>
+                                                                ))}
+                                                            </div>
+                                                            <h4 className="text-[10px] font-black text-indigo-900 leading-tight">
+                                                                {hierarchy[hierarchy.length - 1]}
+                                                            </h4>
+                                                        </div>
+                                                        <div className="grid grid-cols-4 gap-2">
+                                                            {selectedImagesInItem.map((img: any) => (
+                                                                <button
+                                                                    key={img.id}
+                                                                    onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))}
+                                                                    className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-sm"
+                                                                >
+                                                                    <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40" />
+                                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                                        <span className="text-[7px] font-black text-red-600 bg-white/90 px-1.5 py-0.5 rounded shadow-sm">제외</span>
+                                                                    </div>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
                                             });
-
-                                            const groupKeys = Object.keys(groups);
-                                            if (groupKeys.length === 0) return <div className="text-center py-8 text-gray-300 text-[11px]">선택된 이미지가 없습니다.</div>;
-
-                                            return groupKeys.map(key => (
-                                                <div key={key} className="bg-indigo-50/40 rounded-xl p-3 border border-indigo-100/50 space-y-2">
-                                                    <div className="flex flex-wrap items-center gap-1">
-                                                        {groups[key].path.map((step, sidx) => (
-                                                            <React.Fragment key={sidx}>
-                                                                <span className={`text-[9px] font-bold ${sidx === groups[key].path.length - 1 ? 'text-indigo-600' : 'text-gray-400'}`}>{step}</span>
-                                                                {sidx < groups[key].path.length - 1 && <ChevronRight className="w-2 h-2 text-gray-300" />}
-                                                            </React.Fragment>
-                                                        ))}
-                                                    </div>
-                                                    <div className="grid grid-cols-5 gap-1.5">
-                                                        {groups[key].images.map(img => (
-                                                            <button
-                                                                key={img.id}
-                                                                onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))}
-                                                                className="group relative aspect-square bg-white rounded-lg overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-sm"
-                                                            >
-                                                                <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40" />
-                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                                                    <span className="text-[7px] font-black text-red-600 bg-white/90 px-1 py-0.5 rounded shadow-sm">제외</span>
-                                                                </div>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ));
                                         })()}
                                     </div>
                                 </motion.div>
