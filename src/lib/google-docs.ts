@@ -229,6 +229,7 @@ export const calculateImageResizeRequests = (
 
                             actions.push({
                                 type: 'inline',
+                                id: inlineObjId,
                                 index: elStart,
                                 uri: contentUri,
                                 width: targetWidthPt,
@@ -299,44 +300,33 @@ export const calculateImageResizeRequests = (
 
     actions.forEach(action => {
         if (action.type === 'inline') {
-            // 1. Insert New Image at current index
             requests.push({
-                insertInlineImage: {
-                    uri: action.uri,
-                    location: { index: action.index },
-                    objectSize: {
-                        width: { magnitude: targetWidthPt, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
-                }
-            });
-            // 2. Delete Old Image. 
-            // After insertion, the old image (1 char) is pushed to index + 1.
-            // So we delete range [index + 1, index + 2).
-            requests.push({
-                deleteContentRange: {
-                    range: {
-                        startIndex: action.index + 1,
-                        endIndex: action.index + 2
-                    }
+                updateInlineObjectProperties: {
+                    objectId: action.id, // We need to ensure action has ID
+                    inlineObjectProperties: {
+                        embeddedObject: {
+                            size: {
+                                width: { magnitude: targetWidthPt, unit: 'PT' },
+                                height: { magnitude: action.height, unit: 'PT' }
+                            }
+                        }
+                    },
+                    fields: 'embeddedObject.size'
                 }
             });
         } else if (action.type === 'positioned') {
-            // 1. Delete Positioned Object (ID based, no index shift for text)
             requests.push({
-                deletePositionedObject: {
-                    objectId: action.id
-                }
-            });
-            // 2. Insert New Inline Image at Anchor Paragraph Start
-            requests.push({
-                insertInlineImage: {
-                    uri: action.uri,
-                    location: { index: action.anchorIndex },
-                    objectSize: {
-                        width: { magnitude: targetWidthPt, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
+                updatePositionedObjectProperties: {
+                    objectId: action.id,
+                    positionedObjectProperties: {
+                        embeddedObject: {
+                            size: {
+                                width: { magnitude: targetWidthPt, unit: 'PT' },
+                                height: { magnitude: action.height, unit: 'PT' }
+                            }
+                        }
+                    },
+                    fields: 'embeddedObject.size'
                 }
             });
         }
