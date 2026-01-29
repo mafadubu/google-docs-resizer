@@ -136,6 +136,7 @@ export function Dashboard() {
     const handleReset = () => {
         // Only reset the Input State, keeping the structure visible ("Ghost" mode)
         setIsLoaded(false);
+        setIsInputFolded(false); // UI Expansion requested
         setDocUrl(""); // Clear input so they can type new one
         setResizeStatus("idle");
         setResultMsg("");
@@ -230,7 +231,6 @@ export function Dashboard() {
             </AnimatePresence>
             {/* Header */}
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-                {/* ... (existing header content) */}
                 <div
                     className="flex items-center space-x-3 cursor-pointer group"
                     onClick={() => {
@@ -272,7 +272,7 @@ export function Dashboard() {
                             )}
                         </AnimatePresence>
                     </div>
-                    {/* ... (user profile & logout) */}
+
                     <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 rounded-full">
                         <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border border-gray-200">
                             {session?.user?.image && !imgError ? (
@@ -297,507 +297,373 @@ export function Dashboard() {
                     </button>
                 </div>
             </header>
-
-            <main className="flex-1 max-w-6xl mx-auto w-full p-6 grid grid-cols-1 md:grid-cols-12 gap-8">
-
+            <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 py-8">
                 <AnimatePresence>
                     {showSuccess && <SuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} message={successMsg} />}
                 </AnimatePresence>
 
-                {/* Left Col: Setup - Sticky Sidebar */}
-                <div className="md:col-span-4 space-y-6 md:sticky md:top-24 h-fit">
+                <div className="grid md:grid-cols-12 gap-8">
+                    {/* Left Col: Setup - Sticky Sidebar */}
+                    <div className="md:col-span-4 space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain">
 
-                    {/* Help Cards - Only show if NO structure is loaded */}
-                    <AnimatePresence>
-                        {!structure && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="overflow-hidden space-y-4"
-                            >
-                                <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100">
-                                    <h3 className="font-bold text-amber-900 mb-3 flex items-center">
-                                        <MousePointerClick className="w-5 h-5 mr-2 text-amber-600" />
-                                        사용 전 확인해 주세요!
-                                    </h3>
-                                    <ul className="space-y-2 text-sm text-amber-800 font-medium">
-                                        <li className="flex items-start">
-                                            <span className="mr-2">1.</span>
-                                            <span>수정할 구글 문서의 <strong>공유 설정</strong>이 '링크가 있는 모든 사용자' 혹은 본인 계정으로 '편집 가능' 인지 확인해주세요.</span>
-                                        </li>
-                                        <li className="flex items-start text-red-600">
-                                            <span className="mr-2">2.</span>
-                                            <span className="font-bold underline italic">반드시 문서를 백업(사본 생성)한 후 작업을 진행해 주세요.</span>
-                                        </li>
-                                    </ul>
-                                </div>
-
-                                <div className="bg-green-50 rounded-2xl p-5 border border-green-100 flex items-start">
-                                    <ShieldCheck className="w-6 h-6 mr-3 text-green-600 mt-0.5" />
-                                    <div>
-                                        <h4 className="font-bold text-green-800 mb-1">안심하세요!</h4>
-                                        <p className="text-sm text-green-700 leading-relaxed font-medium">
-                                            입력하신 URL은 분석 용도로만 사용되며, 외부로 유출되거나 별도로 저장되지 않습니다.
-                                        </p>
+                        {/* Help Cards */}
+                        <AnimatePresence>
+                            {!structure && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="overflow-hidden space-y-3"
+                                >
+                                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-900 shadow-sm relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-2 opacity-5">
+                                            <FileText className="w-16 h-16" />
+                                        </div>
+                                        <h3 className="font-bold mb-2 flex items-center text-blue-800">
+                                            <CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
+                                            시작하기 전에 확인해 주세요!
+                                        </h3>
+                                        <ul className="space-y-1.5 pl-1 z-10 relative text-[11px] leading-relaxed">
+                                            <li className="flex items-start">
+                                                <span className="mr-2 text-blue-400 font-bold">1.</span>
+                                                <span>수정하려는 문서의 <strong className="font-bold">편집 권한</strong>이 있는지 확인해주세요.</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <span className="mr-2 text-blue-400 font-bold">2.</span>
+                                                <span>문서 내에 <strong className="font-bold">직접 삽입된 이미지</strong>만 크기 조절이 가능합니다.</span>
+                                            </li>
+                                            <li className="flex items-start">
+                                                <span className="mr-2 text-blue-400 font-bold">3.</span>
+                                                <span>챕터별 기능을 사용하려면 <strong className="font-bold">제목 스타일</strong>을 적용해야 합니다.</span>
+                                            </li>
+                                        </ul>
                                     </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
 
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden transition-[height]">
-                        <div className="flex items-center justify-between mb-2">
-                            <h2 className="text-xl font-bold flex items-center">
-                                <FileText className="w-5 h-5 mr-2 text-indigo-500" />
-                                1. 문서 선택
-                            </h2>
-                            <div className="flex items-center space-x-2">
-                                <AnimatePresence>
-                                    {isLoaded && (
-                                        <motion.div
-                                            key="reenter-btn"
-                                            initial={{ opacity: 0, scale: 0.8 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.8 }}
-                                        >
-                                            <button
-                                                onClick={handleReset}
-                                                className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
+                                    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-start">
+                                        <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center mr-3 flex-shrink-0">
+                                            <ShieldCheck className="w-4 h-4 text-green-600" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 mb-0.5 text-xs">안전한 데이터 처리</h4>
+                                            <p className="text-[10px] text-gray-500 leading-tight">
+                                                모든 이미지 처리는 사용자의 구글 드라이브 권한 내에서만 안전하게 수행됩니다.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* 1. Document Selection */}
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-base font-bold flex items-center">
+                                    <FileText className="w-4 h-4 mr-2 text-indigo-500" />
+                                    1. 문서 선택
+                                </h2>
+                                <div className="flex items-center space-x-2">
+                                    <AnimatePresence>
+                                        {isLoaded && (
+                                            <motion.div
+                                                key="reenter-btn"
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                exit={{ opacity: 0, scale: 0.8 }}
                                             >
-                                                <RefreshCw className="w-3 h-3 mr-1.5" />
-                                                다른 문서 선택
-                                            </button>
-                                        </motion.div>
+                                                <button
+                                                    onClick={handleReset}
+                                                    className="text-[10px] flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-full transition-colors font-bold"
+                                                >
+                                                    <RefreshCw className="w-3 h-3 mr-1" />
+                                                    다른 문서
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    {structure && (
+                                        <button
+                                            onClick={() => setIsInputFolded(!isInputFolded)}
+                                            className="p-1 hover:bg-gray-100 rounded text-gray-400"
+                                        >
+                                            <ChevronUp className={`w-4 h-4 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} />
+                                        </button>
                                     )}
-                                </AnimatePresence>
-
-                                {structure && (
-                                    <button
-                                        onClick={() => setIsInputFolded(!isInputFolded)}
-                                        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"
-                                        title={isInputFolded ? "펼치기" : "접기"}
-                                    >
-                                        <ChevronUp className={`w-5 h-5 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} />
-                                    </button>
-                                )}
+                                </div>
                             </div>
+
+                            <AnimatePresence>
+                                {!isInputFolded && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="space-y-4 pt-2">
+                                            <div>
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">문서 URL / ID</label>
+                                                <div className="mt-1.5 relative">
+                                                    <input
+                                                        type="text"
+                                                        value={docUrl}
+                                                        onChange={handleUrlChange}
+                                                        placeholder="https://docs.google.com/document/d/..."
+                                                        className={`w-full pl-3 pr-8 py-2.5 rounded-xl border text-sm outline-none transition-all ${isUrlInvalid ? 'bg-red-50 border-red-200 focus:ring-red-100' : 'bg-gray-50 border-gray-100 focus:border-indigo-300'}`}
+                                                    />
+                                                    {docUrl && (
+                                                        <button onClick={() => setDocUrl("")} className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">×</button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={fetchStructure}
+                                                disabled={loading || !docUrl}
+                                                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center"
+                                            >
+                                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "문서 불러오기"}
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
-                        <AnimatePresence>
-                            {!isInputFolded && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: "auto", opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="overflow-hidden"
-                                >
-                                    <div className="space-y-4 pt-2">
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">문서 URL / ID</label>
-                                            <div className="mt-2 relative">
-                                                <input
-                                                    type="text"
-                                                    value={docUrl}
-                                                    onChange={handleUrlChange}
-                                                    placeholder="https://docs.google.com/document/d/..."
-                                                    className={`
-                                                        w-full pl-4 pr-10 py-3 rounded-xl focus:ring-2 outline-none transition-all text-sm
-                                                        ${isUrlInvalid
-                                                            ? 'bg-red-50 border-2 border-red-300 focus:ring-red-200 text-red-900 placeholder-red-300'
-                                                            : 'bg-gray-50 border border-gray-200 focus:ring-indigo-500 focus:border-transparent'
-                                                        }
-                                                    `}
-                                                />
-                                                {docUrl && (
-                                                    <button
-                                                        onClick={() => setDocUrl("")}
-                                                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                                                    >
-                                                        ×
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
+                        {/* 2. Settings (Optimized & Compact) */}
+                        {structure && (
+                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-[13px] font-bold flex items-center text-gray-800">
+                                        <Layout className="w-3.5 h-3.5 mr-2 text-indigo-500" />
+                                        환경 설정
+                                    </h2>
+                                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md font-mono font-bold text-[10px]">{targetWidth}cm</div>
+                                </div>
 
+                                <div className="flex items-center space-x-4 bg-gray-50/50 p-2 rounded-xl border border-gray-50">
+                                    <input
+                                        type="range"
+                                        min="5"
+                                        max="20"
+                                        step="0.5"
+                                        value={targetWidth}
+                                        onChange={(e) => setTargetWidth(Number(e.target.value))}
+                                        className="flex-1 accent-indigo-600 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                    <div className="flex flex-col items-end min-w-[60px]">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter mb-0.5">TARGET</span>
+                                        <div className="flex items-center text-[10px] font-bold text-gray-700">
+                                            {selectedImageIds.length > 0 ? `${selectedImageIds.length}개` : selectedScopes.length === 0 ? "전체" : `${selectedScopes.length}개`}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleResize}
+                                    disabled={resizeStatus === "processing"}
+                                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2"
+                                >
+                                    {resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3.5 h-3.5" /><span>크기 조정</span></>}
+                                </button>
+                            </div>
+                        )}
+
+                        {resultMsg && resizeStatus === 'error' && (
+                            <div className="mt-4 p-3 rounded-lg text-sm flex items-center bg-red-50 text-red-700">{resultMsg}</div>
+                        )}
+
+                        {/* Selected Items Summary Box */}
+                        <AnimatePresence>
+                            {structure && (selectedImageIds.length > 0 || selectedScopes.length > 0) && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                                    className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mt-4 flex flex-col max-h-[400px]"
+                                >
+                                    <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                                        <h2 className="text-base font-bold flex items-center">
+                                            <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                                            항목 요약
+                                        </h2>
                                         <button
-                                            onClick={fetchStructure}
-                                            disabled={loading || !docUrl}
-                                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
+                                            onClick={() => { setSelectedImageIds([]); setSelectedScopes([]); }}
+                                            className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-tighter bg-gray-50 px-2 py-1 rounded-md transition-colors"
                                         >
-                                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "문서 불러오기"}
+                                            전체 선택 해제
                                         </button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4">
+                                        {/* Selected Chapters (Visual) */}
+                                        {selectedScopes.length > 0 && (
+                                            <div className="space-y-2">
+                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">선택된 챕터 ({selectedScopes.length}개)</p>
+                                                <div className="space-y-1">
+                                                    {selectedScopes.map((scope: any, idx: number) => {
+                                                        const chapter = structure.items.find((it: any) => it.startIndex === scope.start);
+                                                        return (
+                                                            <div key={idx} className="bg-indigo-50/40 rounded-xl p-2 border border-indigo-100/50 flex flex-col space-y-2">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center">
+                                                                        <CheckCircle className="w-3 h-3 mr-2 text-indigo-500" />
+                                                                        <span className="text-[11px] font-bold text-indigo-900 truncate max-w-[150px]">{scope.label}</span>
+                                                                    </div>
+                                                                    <button onClick={() => setSelectedScopes(prev => prev.filter(s => s.start !== scope.start))} className="text-[9px] text-gray-400 hover:text-red-500 font-bold">제거</button>
+                                                                </div>
+                                                                {chapter && chapter.images.length > 0 && (
+                                                                    <div className="flex -space-x-2 overflow-hidden pl-1">
+                                                                        {chapter.images.slice(0, 5).map((img: any) => (
+                                                                            <div key={img.id} className="w-6 h-6 rounded-md border-2 border-white bg-gray-100 overflow-hidden shadow-sm">
+                                                                                <img src={img.uri} className="w-full h-full object-cover" />
+                                                                            </div>
+                                                                        ))}
+                                                                        {chapter.images.length > 5 && (
+                                                                            <div className="w-6 h-6 rounded-md border-2 border-white bg-indigo-100 flex items-center justify-center text-[8px] font-black text-indigo-600 shadow-sm">
+                                                                                +{chapter.images.length - 5}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Individual Selected Images (Visual Grid) */}
+                                        {selectedImageIds.length > 0 && (
+                                            <div className="space-y-2">
+                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">개별 선택 이미지 ({selectedImageIds.length}개)</p>
+                                                <div className="grid grid-cols-4 gap-2">
+                                                    {selectedImageIds.map((id) => {
+                                                        let imageUri = null;
+                                                        for (const chapter of structure.items) {
+                                                            const img = chapter.images.find((i: any) => i.id === id);
+                                                            if (img) { imageUri = img.uri; break; }
+                                                        }
+                                                        return (
+                                                            <button key={id} onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== id))} className="group relative aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-100 hover:border-red-300 transition-all shadow-sm">
+                                                                {imageUri ? <img src={imageUri} className="w-full h-full object-cover group-hover:opacity-40" /> : <ImageIcon className="w-4 h-4 text-gray-400" />}
+                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"><span className="text-[8px] font-black text-red-600 bg-white/90 px-1 py-0.5 rounded shadow-sm uppercase tracking-tighter">제외</span></div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
                     </div>
 
-                    {structure && (
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <h2 className="text-xl font-bold mb-4 flex items-center">
-                                <Layout className="w-5 h-5 mr-2 text-indigo-500" />
-                                2. 설정
-                            </h2>
-
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
-                                        목표 너비 (cm)
-                                    </label>
-                                    <div className="flex items-center space-x-4">
-
-
-
-                                        <input
-                                            type="range"
-                                            min="5"
-                                            max="20"
-                                            step="0.5"
-                                            value={targetWidth}
-                                            onChange={(e) => setTargetWidth(Number(e.target.value))}
-                                            className="flex-1 accent-indigo-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                                        />
-
-                                        <div className="w-20 pl-4 py-2 bg-gray-100 rounded-lg text-center font-mono font-bold text-gray-700">
-                                            {targetWidth}cm
+                    {/* Right Col: Outline / Content */}
+                    <div className="md:col-span-8">
+                        {structure ? (
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
+                                {/* Persistent Sticky Header */}
+                                <div className="sticky top-24 z-40 bg-white border-b border-gray-100 shadow-sm rounded-t-2xl">
+                                    {!activeChapterId ? (
+                                        <div className="p-4 bg-white/95 backdrop-blur-md rounded-t-2xl">
+                                            <h2 className="text-base font-bold text-gray-900 truncate">{structure.title}</h2>
+                                            <p className="text-xs text-gray-500">아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다.</p>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
-                                        적용 범위 (Scope)
-                                    </label>
-                                    <div className="p-3 bg-indigo-50 text-indigo-900 rounded-xl text-sm font-medium border border-indigo-100 truncate">
-                                        {selectedImageIds.length > 0
-                                            ? `${selectedImageIds.length}개 이미지 직접 선택됨`
-                                            : selectedScopes.length === 0
-                                                ? "선택된 챕터 없음 (문서 전체 모드)"
-                                                : selectedScopes.length === structure.items.length
-                                                    ? "문서 전체 선택됨"
-                                                    : `${selectedScopes.length}개 챕터 선택됨`
-                                        }
-                                    </div>
-                                    <p className="text-xs text-gray-400 mt-2">
-                                        * 오른쪽 목록에서 챕터를 클릭하여 <strong>다중 선택</strong>할 수 있습니다.
-                                    </p>
-                                </div>
-
-                                <div className="pt-4 border-t border-gray-100">
-                                    <button
-                                        onClick={handleResize}
-                                        disabled={resizeStatus === "processing"}
-                                        className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-bold text-lg shadow-xl shadow-indigo-200 transition-all flex items-center justify-center space-x-2"
-                                    >
-                                        {resizeStatus === "processing" ? (
-                                            <Loader2 className="w-6 h-6 animate-spin" />
-                                        ) : (
-                                            <>
-                                                <RefreshCw className="w-5 h-5" />
-                                                <span>이미지 크기 조절하기</span>
-                                            </>
-                                        )}
-                                    </button>
-
-                                    {resultMsg && resizeStatus === 'error' && (
-                                        <div className="mt-4 p-3 rounded-lg text-sm flex items-center bg-red-50 text-red-700">
-                                            {resultMsg}
+                                    ) : (
+                                        <div className="divide-y divide-gray-50 bg-white/95 backdrop-blur-md rounded-t-2xl">
+                                            <div className="flex items-center justify-between p-3">
+                                                <button onClick={handleBackToOutline} className="flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors text-xs font-bold">
+                                                    <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                                                    목차로
+                                                </button>
+                                                <div className="flex-1 px-4 text-center">
+                                                    <h3 className="text-sm font-black text-gray-900 truncate">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3>
+                                                </div>
+                                                <button onClick={() => {
+                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                    if (!currentChapter) return;
+                                                    const allIds = currentChapter.images.map((img: any) => img.id);
+                                                    const areAllSelected = allIds.every((id: string) => selectedImageIds.includes(id));
+                                                    if (areAllSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
+                                                    else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
+                                                }} className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 px-2 py-1">
+                                                    {(() => {
+                                                        const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                        const allIds = currentChapter?.images.map((img: any) => img.id) || [];
+                                                        return allIds.every((id: string) => selectedImageIds.includes(id)) ? "선택 해제" : "전체 선택";
+                                                    })()}
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center justify-between p-2 px-3">
+                                                <div className="flex items-center bg-gray-50 rounded-xl p-1">
+                                                    <button onClick={() => setViewMode('grid')} className={`flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
+                                                        <Grid3X3 className="w-3.5 h-3.5 mr-1.5" />
+                                                        그리드
+                                                    </button>
+                                                    <button onClick={() => setViewMode('carousel')} className={`flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>
+                                                        <Maximize2 className="w-3.5 h-3.5 mr-1.5" />
+                                                        캐러셀
+                                                    </button>
+                                                </div>
+                                                {viewMode === 'grid' && (
+                                                    <div className="flex items-center space-x-1 pl-4">
+                                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mr-2">COLUMNS</span>
+                                                        {[1, 2, 3, 4, 5].map(num => (
+                                                            <button key={num} onClick={() => setGridCols(num)} className={`w-6 h-6 rounded-md text-[10px] font-black transition-all ${gridCols === num ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-100'}`}>{num}</button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        </div>
-                    )}
 
-                    {/* Selected Items Summary Box */}
-                    {structure && (selectedImageIds.length > 0 || selectedScopes.length > 0) && (
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col max-h-[400px]">
-                            <h2 className="text-xl font-bold mb-4 flex items-center flex-shrink-0">
-                                <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
-                                선택된 항목 요약
-                            </h2>
-
-                            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain">
-                                {selectedImageIds.length > 0 ? (
-                                    <div className="space-y-3">
-                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">직접 선택한 이미지 ({selectedImageIds.length})</p>
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {selectedImageIds.map((id) => {
-                                                // Find the chapter and index for this image to show a nicer label
-                                                let label = "IMG";
-                                                for (const chapter of structure.items) {
-                                                    const idx = chapter.images.findIndex((img: any) => img.id === id);
-                                                    if (idx !== -1) {
-                                                        label = `IMG #${idx + 1}`;
-                                                        break;
-                                                    }
-                                                }
-
-                                                return (
-                                                    <button
-                                                        key={id}
-                                                        onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== id))}
-                                                        className="group relative px-2 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-[10px] text-indigo-600 font-mono font-bold hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all flex items-center justify-center text-center"
-                                                        title="클릭하여 선택 해제"
-                                                    >
-                                                        <span className="group-hover:hidden">{label}</span>
-                                                        <span className="hidden group-hover:inline">삭제</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">선택된 챕터 ({selectedScopes.length})</p>
-                                        <div className="grid gap-2">
-                                            {selectedScopes.map((scope: any, idx: number) => (
-                                                <div key={idx} className="flex items-center p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                                                    <CheckCircle className="w-3.5 h-3.5 mr-2 text-indigo-500" />
-                                                    <span className="text-xs font-bold text-indigo-900 truncate">{scope.label}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Right Col: Outline */}
-                <div className="md:col-span-8">
-                    {structure ? (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
-                            {/* Persistent Sticky Header - Combined & Compact */}
-                            <div className="sticky top-24 z-40 bg-white border-b border-gray-100 shadow-sm rounded-t-2xl">
-                                {!activeChapterId ? (
-                                    <div className="p-4 bg-white/95 backdrop-blur-md rounded-t-2xl">
-                                        <h2 className="text-base font-bold text-gray-900 truncate">{structure.title}</h2>
-                                        <p className="text-xs text-gray-500">아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다.</p>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y divide-gray-50 bg-white/95 backdrop-blur-md rounded-t-2xl">
-                                        {/* Row 1: Navigation */}
-                                        <div className="flex items-center justify-between p-3">
-                                            <button
-                                                onClick={handleBackToOutline}
-                                                className="flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors text-xs font-bold"
-                                            >
-                                                <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-                                                목차로
-                                            </button>
-
-                                            <div className="flex-1 px-4 text-center">
-                                                <h3 className="text-sm font-black text-gray-900 truncate">
-                                                    {structure.items.find((it: any) => it.id === activeChapterId)?.title}
-                                                </h3>
-                                            </div>
-
-                                            <button
-                                                onClick={() => {
-                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                    if (!currentChapter) return;
-                                                    const allChapterImageIds = currentChapter.images.map((img: any) => img.id);
-                                                    const areAllSelected = allChapterImageIds.every((id: string) => selectedImageIds.includes(id));
-
-                                                    if (areAllSelected) {
-                                                        setSelectedImageIds(prev => prev.filter(id => !allChapterImageIds.includes(id)));
-                                                    } else {
-                                                        setSelectedImageIds(prev => Array.from(new Set([...prev, ...allChapterImageIds])));
-                                                    }
-                                                }}
-                                                className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 transition-colors px-2 py-1"
-                                            >
-                                                {(() => {
-                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                    if (!currentChapter) return "전체 선택";
-                                                    const allIds = currentChapter.images.map((img: any) => img.id);
-                                                    return allIds.every((id: string) => selectedImageIds.includes(id)) ? "선택 해제" : "전체 선택";
-                                                })()}
-                                            </button>
-                                        </div>
-
-                                        {/* Row 2: Controls */}
-                                        <div className="flex items-center justify-between p-2 px-3">
-                                            <div className="flex items-center bg-gray-50 rounded-xl p-1">
-                                                <button
-                                                    onClick={() => setViewMode('grid')}
-                                                    className={`flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                >
-                                                    <Grid3X3 className="w-3.5 h-3.5 mr-1.5" />
-                                                    그리드
-                                                </button>
-                                                <button
-                                                    onClick={() => setViewMode('carousel')}
-                                                    className={`flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                >
-                                                    <Maximize2 className="w-3.5 h-3.5 mr-1.5" />
-                                                    캐러셀
-                                                </button>
-                                            </div>
-
-                                            {viewMode === 'grid' && (
-                                                <div className="flex items-center space-x-1 border-l border-gray-100 pl-4">
-                                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mr-2">COLUMNS</span>
-                                                    {[1, 2, 3, 4, 5].map(num => (
-                                                        <button
-                                                            key={num}
-                                                            onClick={() => setGridCols(num)}
-                                                            className={`w-6 h-6 rounded-md text-[10px] font-black transition-all ${gridCols === num ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-300 hover:bg-gray-100 hover:text-gray-600'}`}
-                                                        >
-                                                            {num}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                {activeChapterId ? (
-                                    <div className="space-y-6">
-                                        {/* View Content */}
+                                {/* Content Area */}
+                                <div className="p-6 flex-1">
+                                    {activeChapterId ? (
                                         <div>
                                             {(() => {
                                                 const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                 if (!currentChapter) return null;
-                                                if (currentChapter.images.length === 0) {
-                                                    return (
-                                                        <div className="p-12 text-center text-gray-400">
-                                                            이 챕터에는 조절 가능한 이미지가 없습니다.
-                                                        </div>
-                                                    );
-                                                }
+                                                if (currentChapter.images.length === 0) return <div className="p-12 text-center text-gray-400">이 챕터에는 조절 가능한 이미지가 없습니다.</div>;
 
                                                 if (viewMode === 'grid') {
                                                     return (
-                                                        <div
-                                                            className="grid gap-6"
-                                                            style={{
-                                                                gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
-                                                            }}
-                                                        >
+                                                        <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
                                                             {currentChapter.images.map((img: any, i: number) => {
                                                                 const isImgSelected = selectedImageIds.includes(img.id);
                                                                 return (
-                                                                    <div
-                                                                        key={img.id}
-                                                                        onClick={() => {
-                                                                            if (isImgSelected) {
-                                                                                setSelectedImageIds(prev => prev.filter(id => id !== img.id));
-                                                                            } else {
-                                                                                setSelectedImageIds(prev => [...prev, img.id]);
-                                                                            }
-                                                                        }}
-                                                                        className={`
-                                                                            relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group
-                                                                            ${isImgSelected ? 'border-indigo-500 shadow-lg shadow-indigo-100' : 'border-transparent hover:border-gray-200'}
-                                                                        `}
-                                                                    >
+                                                                    <div key={img.id} onClick={() => isImgSelected ? setSelectedImageIds(prev => prev.filter(id => id !== img.id)) : setSelectedImageIds(prev => [...prev, img.id])} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
                                                                         <div className="relative aspect-video flex items-center justify-center p-3">
-                                                                            <img
-                                                                                src={img.uri}
-                                                                                alt={`Img ${i}`}
-                                                                                className="max-h-full max-w-full rounded shadow-sm transition-transform group-hover:scale-110 object-contain"
-                                                                            />
-                                                                            <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
-                                                                                {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                                                                            </div>
+                                                                            <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
+                                                                            <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>{isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}</div>
                                                                         </div>
-                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
-                                                                            <span className="truncate">#{i + 1} ({img.type})</span>
-                                                                            {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
-                                                                        </div>
+                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500"><span className="truncate">#{i + 1} ({img.type})</span>{isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}</div>
                                                                     </div>
                                                                 );
                                                             })}
                                                         </div>
                                                     );
                                                 } else {
-                                                    // Carousel Mode
                                                     const activeImg = currentChapter.images[carouselIndex] || currentChapter.images[0];
                                                     const isActiveSelected = selectedImageIds.includes(activeImg.id);
-
                                                     return (
-                                                        <div className="space-y-6">
-                                                            {/* Big Preview */}
-                                                            <div
-                                                                className={`
-                                                                    relative rounded-3xl border-2 transition-all overflow-hidden bg-gray-100 group flex flex-col h-[400px]
-                                                                    ${isActiveSelected ? 'border-indigo-500 shadow-xl shadow-indigo-100' : 'border-gray-200 shadow-sm'}
-                                                                `}
-                                                            >
-                                                                <div
-                                                                    className="flex-1 relative flex items-center justify-center p-8 bg-gray-50/50 cursor-pointer"
-                                                                    onClick={() => {
-                                                                        if (isActiveSelected) {
-                                                                            setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
-                                                                        } else {
-                                                                            setSelectedImageIds(prev => [...prev, activeImg.id]);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <img
-                                                                        src={activeImg.uri}
-                                                                        className="max-h-full max-w-full rounded-lg shadow-2xl transition-transform group-hover:scale-105 object-contain"
-                                                                    />
-
-                                                                    <div className={`absolute top-6 left-6 flex items-center space-x-3 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl shadow-lg border-2 ${isActiveSelected ? 'border-indigo-500' : 'border-transparent'}`}>
-                                                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isActiveSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
-                                                                            {isActiveSelected && <div className="w-2 h-2 bg-white rounded-full" />}
-                                                                        </div>
-                                                                        <span className="text-sm font-black text-gray-900">IMAGE #{carouselIndex + 1}</span>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
-                                                                    <div className="flex items-center space-x-2">
-                                                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{activeImg.type}</span>
-                                                                        <span className="text-xs text-gray-300">|</span>
-                                                                        <span className="text-xs text-gray-400">문서 내 위치: {activeImg.startIndex}</span>
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            if (isActiveSelected) {
-                                                                                setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
-                                                                            } else {
-                                                                                setSelectedImageIds(prev => [...prev, activeImg.id]);
-                                                                            }
-                                                                        }}
-                                                                        className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                                                    >
-                                                                        {isActiveSelected ? "선택 해제" : "현재 이미지 선택"}
-                                                                    </button>
+                                                        <div className="space-y-8">
+                                                            <div className="relative aspect-video bg-gray-50 rounded-3xl border border-gray-100 flex items-center justify-center p-8 overflow-hidden group">
+                                                                <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] opacity-30" />
+                                                                <motion.img key={activeImg.id} src={activeImg.uri} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-h-full max-w-full relative z-10 rounded-xl shadow-2xl" />
+                                                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+                                                                    <button onClick={() => isActiveSelected ? setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id)) : setSelectedImageIds(prev => [...prev, activeImg.id])} className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border shadow-sm'}`}>{isActiveSelected ? "선택 해제" : "현재 이미지 선택"}</button>
                                                                 </div>
                                                             </div>
-
-                                                            {/* Thumbnail Track */}
                                                             <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
                                                                 {currentChapter.images.map((img: any, i: number) => {
-                                                                    const isSelected = selectedImageIds.includes(img.id);
+                                                                    const isImgSelected = selectedImageIds.includes(img.id);
                                                                     const isActive = carouselIndex === i;
                                                                     return (
-                                                                        <button
-                                                                            key={img.id}
-                                                                            onClick={() => setCarouselIndex(i)}
-                                                                            className={`
-                                                                            relative flex-shrink-0 w-24 h-24 rounded-2xl border-2 transition-all p-2 overflow-hidden
-                                                                            ${isActive ? 'border-indigo-500 ring-4 ring-indigo-50 bg-white' : 'border-gray-100 bg-gray-50 hover:border-gray-300'}
-                                                                        `}
-                                                                        >
+                                                                        <button key={img.id} onClick={() => setCarouselIndex(i)} className={`relative flex-shrink-0 w-24 h-24 rounded-2xl border-2 transition-all p-2 overflow-hidden ${isActive ? 'border-indigo-500 ring-4 ring-indigo-50 bg-white' : 'border-gray-100 bg-gray-50 hover:border-gray-300'}`}>
                                                                             <img src={img.uri} className="w-full h-full object-contain rounded" />
-                                                                            {isSelected && (
-                                                                                <div className="absolute top-1 right-1">
-                                                                                    <CheckCircle className="w-4 h-4 text-indigo-600 bg-white rounded-full" />
-                                                                                </div>
-                                                                            )}
-                                                                            <div className="absolute bottom-1 left-1 bg-black/60 text-[8px] text-white px-1.5 rounded-md font-bold">
-                                                                                #{i + 1}
-                                                                            </div>
+                                                                            {isImgSelected && <div className="absolute top-1 right-1"><CheckCircle className="w-4 h-4 text-indigo-600 bg-white rounded-full" /></div>}
+                                                                            <div className="absolute bottom-1 left-1 bg-black/60 text-[8px] text-white px-1.5 rounded-md font-bold">#{i + 1}</div>
                                                                         </button>
                                                                     );
                                                                 })}
@@ -807,77 +673,31 @@ export function Dashboard() {
                                                 }
                                             })()}
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-1">
-                                        <div
-                                            onClick={() => {
-                                                if (selectedScopes.length === structure.items.length) {
-                                                    setSelectedScopes([]);
-                                                } else {
-                                                    setSelectedScopes(structure.items.map((it: any) => ({
-                                                        start: it.startIndex,
-                                                        end: it.scopeEndIndex,
-                                                        label: it.title
-                                                    })));
-                                                }
-                                            }}
-                                            className="group flex items-center p-4 rounded-xl border-2 border-dashed border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all cursor-pointer mb-6"
-                                        >
-                                            <div className={`w-6 h-6 rounded-full border-2 mr-3 flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}>
-                                                {selectedScopes.length === structure.items.length && <CheckCircle className="w-4 h-4 text-white" />}
+                                    ) : (
+                                        <div className="space-y-1">
+                                            <div onClick={() => {
+                                                if (selectedScopes.length === structure.items.length) setSelectedScopes([]);
+                                                else setSelectedScopes(structure.items.map((it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title })));
+                                            }} className="group flex items-center p-4 rounded-xl border-2 border-dashed border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all cursor-pointer mb-6">
+                                                <div className={`w-6 h-6 rounded-full border-2 mr-3 flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}>{selectedScopes.length === structure.items.length && <CheckCircle className="w-4 h-4 text-white" />}</div>
+                                                <div className="flex-1 text-left"><h3 className="font-bold text-gray-900">문서 전체 선택</h3><p className="text-xs text-gray-500">모든 제목과 내용을 한 번에 선택합니다.</p></div>
                                             </div>
-                                            <div className="flex-1">
-                                                <h3 className="font-bold text-gray-900">문서 전체 선택</h3>
-                                                <p className="text-xs text-gray-500">모든 제목과 내용을 한 번에 선택합니다.</p>
-                                            </div>
-                                        </div>
-
-                                        {structure.items.map((item: any, idx: number) => {
-                                            const isSelected = selectedScopes.some(s => s.start === item.startIndex);
-
-                                            return (
-                                                <motion.div
-                                                    key={item.id || idx}
-                                                    id={`chapter-${item.id}`}
-                                                    initial={false}
-                                                    animate={{
-                                                        backgroundColor: highlightedChapterId === item.id ? "rgba(163, 230, 53, 0.4)" : isSelected ? "rgba(238, 242, 255, 1)" : "rgba(255, 255, 255, 0)",
-                                                        scale: highlightedChapterId === item.id ? 1.02 : 1,
-                                                        borderColor: highlightedChapterId === item.id ? "#84cc16" : isSelected ? "#c7d2fe" : "rgba(0,0,0,0)"
-                                                    }}
-                                                    transition={{ duration: highlightedChapterId === item.id ? 0.3 : 0.8 }}
-                                                    className={`
-                                                    group p-3 rounded-xl cursor-pointer mb-1 select-none flex items-center justify-between border
-                                                    ${isSelected ? 'text-indigo-900 border-indigo-200' : 'hover:bg-gray-50 text-gray-700 border-transparent'}
-                                                `}
-                                                    style={{ marginLeft: `${(item.level - 1) * 20}px` }}
-                                                >
-                                                    <div
-                                                        className="flex items-center flex-1"
-                                                        onClick={() => {
-                                                            // Clicking the text opens the gallery
-                                                            setActiveChapterId(item.id);
-                                                            // Scroll to top of page/right pane
-                                                            window.scrollTo({ top: 0, behavior: 'auto' });
-                                                        }}
-                                                    >
-                                                        <div
-                                                            onClick={(e) => {
+                                            {structure.items.map((item: any, idx: number) => {
+                                                const isSelected = selectedScopes.some(s => s.start === item.startIndex);
+                                                return (
+                                                    <motion.div key={item.id || idx} id={`chapter-${item.id}`} initial={false} animate={{ backgroundColor: highlightedChapterId === item.id ? "rgba(163, 230, 53, 0.4)" : isSelected ? "rgba(238, 242, 255, 1)" : "rgba(255, 255, 255, 0)", scale: highlightedChapterId === item.id ? 1.02 : 1, borderColor: highlightedChapterId === item.id ? "#84cc16" : isSelected ? "#c7d2fe" : "rgba(0,0,0,0)" }} transition={{ duration: highlightedChapterId === item.id ? 0.3 : 0.8 }} className={`group p-3 rounded-xl cursor-pointer mb-1 select-none flex items-center justify-between border ${isSelected ? 'text-indigo-900 border-indigo-200' : 'hover:bg-gray-50 text-gray-700 border-transparent'}`} style={{ marginLeft: `${(item.level - 1) * 20}px` }}>
+                                                        <div className="flex items-center flex-1" onClick={() => { setActiveChapterId(item.id); window.scrollTo({ top: 0, behavior: 'auto' }); }}>
+                                                            <div onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 const descendants: any[] = [];
                                                                 const currentLevel = item.level;
                                                                 for (let i = idx + 1; i < structure.items.length; i++) {
                                                                     const nextItem = structure.items[i];
-                                                                    if (nextItem.level > currentLevel) {
-                                                                        descendants.push(nextItem);
-                                                                    } else {
-                                                                        break;
-                                                                    }
+                                                                    if (nextItem.level > currentLevel) descendants.push(nextItem);
+                                                                    else break;
                                                                 }
                                                                 const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
                                                                 const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
-
                                                                 if (isCurrentlySelected) {
                                                                     const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
                                                                     setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
@@ -889,53 +709,34 @@ export function Dashboard() {
                                                                         return [...cleanPrev, ...newScopes];
                                                                     });
                                                                 }
-                                                            }}
-                                                            className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}
-                                                        >
-                                                            {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                            }} className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>{isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}</div>
+                                                            <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>H{item.level}</span>
+                                                            <span className={`${item.level === 1 ? 'font-bold' : 'font-medium'} flex-1`}>{item.title}</span>
+                                                            {item.imageCount > 0 && <div className="ml-2 flex items-center text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold"><ImageIcon className="w-3 h-3 mr-1" />{item.imageCount}</div>}
                                                         </div>
-
-                                                        <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
-                                                            H{item.level}
-                                                        </span>
-                                                        <span className={`${item.level === 1 ? 'font-bold' : 'font-medium'} flex-1`}>
-                                                            {item.title}
-                                                        </span>
-
-                                                        {item.imageCount > 0 && (
-                                                            <div className="ml-2 flex items-center text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
-                                                                <ImageIcon className="w-3 h-3 mr-1" />
-                                                                {item.imageCount}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                                                        <MousePointerClick className="w-4 h-4 text-indigo-400" />
-                                                    </div>
-                                                </motion.div>
-                                            );
-                                        })}
-
-                                        {structure.items.length === 0 && (
-                                            <div className="p-8 text-center text-gray-400">
-                                                제목(Heading)을 찾을 수 없습니다. 문서 전체 모드로 사용하세요.
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2"><MousePointerClick className="w-4 h-4 text-indigo-400" /></div>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                            {structure.items.length === 0 && <div className="p-8 text-center text-gray-400">제목(Heading)을 찾을 수 없습니다. 문서 전체 모드로 사용하세요.</div>}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="h-full min-h-[500px] bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400">
-                            <Search className="w-12 h-12 mb-4 opacity-20" />
-                            <p className="text-lg font-medium">문서를 불러와 주세요</p>
-                            <p className="text-sm">구글 문서 URL을 입력하면 목차가 여기에 표시됩니다.</p>
-                        </div>
-                    )}
+                        ) : (
+                            <div className="h-full min-h-[500px] bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400">
+                                <Search className="w-12 h-12 mb-4 opacity-20" />
+                                <p className="text-lg font-medium">문서를 불러와 주세요</p>
+                                <p className="text-sm">구글 문서 URL을 입력하면 목차가 여기에 표시됩니다.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
-
-            </main >
-        </div >
+                <AnimatePresence>
+                    {showGuide && <GuideModal isOpen={showGuide} onClose={closeGuide} />}
+                    {showWarning && <WarningModal isOpen={showWarning} onClose={() => setShowWarning(false)} message={warningMsg} />}
+                </AnimatePresence>
+            </main>
+        </div>
     );
 }

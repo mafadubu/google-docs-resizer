@@ -51,3 +51,11 @@ body {
 .animation-delay-4000 {
   animation-delay: 4s;
 }
+
+.hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hidden-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
