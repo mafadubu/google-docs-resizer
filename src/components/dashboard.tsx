@@ -486,6 +486,17 @@ export function Dashboard() {
                                                 목차로 돌아가기
                                             </button>
 
+                                            <div className="flex-1 px-4 text-center">
+                                                {(() => {
+                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                    return (
+                                                        <span className="text-sm font-bold text-gray-900 line-clamp-1">
+                                                            {currentChapter?.title}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
+
                                             {/* Select All Images in this Chapter */}
                                             {(() => {
                                                 const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
