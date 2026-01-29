@@ -240,7 +240,7 @@ export function Dashboard() {
                         </div>
                         <span className="text-sm font-medium text-gray-700">{session?.user?.name}</span>
                     </div>
-                    <button onClick={() => signOut()} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Sign out"><LogOut className="w-5 h-5" /></button>
+                    <button onClick={() => signOut()} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="로그아웃"><LogOut className="w-5 h-5" /></button>
                 </div>
             </header>
             <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 py-8">
@@ -406,7 +406,7 @@ export function Dashboard() {
                                                 </div>
                                                 {viewMode === 'grid' && (
                                                     <div className="flex items-center space-x-1 pl-4">
-                                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mr-2">COLUMNS</span>
+                                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mr-2">열 개수</span>
                                                         {[1, 2, 3, 4, 5].map(num => (<button key={num} onClick={() => setGridCols(num)} className={`w-6 h-6 rounded-md text-[10px] font-black transition-all ${gridCols === num ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-100'}`}>{num}</button>))}
                                                     </div>
                                                 )}
