@@ -47,6 +47,26 @@ export function Dashboard() {
     // UI State: Controls whether the input is locked (Document Loaded state)
     // We separate this from 'structure' so we can Reset the input without clearing the screen
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isInputFolded, setIsInputFolded] = useState(false);
+
+    // Handle token refresh errors
+    useEffect(() => {
+        // @ts-ignore
+        if (session?.error === "RefreshAccessTokenError") {
+            setWarningMsg("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+            setShowWarning(true);
+            setTimeout(() => {
+                signOut();
+            }, 3000);
+        }
+    }, [session]);
+
+    // Automatically fold input when document is loaded
+    useEffect(() => {
+        if (isLoaded) {
+            setIsInputFolded(true);
+        }
+    }, [isLoaded]);
 
     // Check guide status on mount
     useEffect(() => {
@@ -272,43 +292,40 @@ export function Dashboard() {
                                 <FileText className="w-5 h-5 mr-2 text-indigo-500" />
                                 1. 문서 선택
                             </h2>
-                            <AnimatePresence>
-                                {isLoaded ? (
-                                    <motion.div
-                                        key="reenter-btn"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: 20 }}
-                                    >
-                                        <button
-                                            onClick={handleReset}
-                                            className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
+                            <div className="flex items-center space-x-2">
+                                <AnimatePresence>
+                                    {isLoaded && (
+                                        <motion.div
+                                            key="reenter-btn"
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
                                         >
-                                            <RefreshCw className="w-3 h-3 mr-1.5" />
-                                            URL 다시 입력하기
-                                        </button>
-                                    </motion.div>
-                                ) : structure ? (
-                                    <motion.div
-                                        key="fold-btn"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: 20 }}
+                                            <button
+                                                onClick={handleReset}
+                                                className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
+                                            >
+                                                <RefreshCw className="w-3 h-3 mr-1.5" />
+                                                다른 문서 선택
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {structure && (
+                                    <button
+                                        onClick={() => setIsInputFolded(!isInputFolded)}
+                                        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"
+                                        title={isInputFolded ? "펼치기" : "접기"}
                                     >
-                                        <button
-                                            onClick={() => setIsLoaded(true)}
-                                            className="text-xs flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-full transition-colors"
-                                        >
-                                            <ChevronUp className="w-3 h-3 mr-1.5" />
-                                            접기
-                                        </button>
-                                    </motion.div>
-                                ) : null}
-                            </AnimatePresence>
+                                        <ChevronUp className={`w-5 h-5 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         <AnimatePresence>
-                            {!isLoaded && (
+                            {!isInputFolded && (
                                 <motion.div
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: "auto", opacity: 1 }}
