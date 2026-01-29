@@ -60,6 +60,8 @@ export function Dashboard() {
     const [isLoaded, setIsLoaded] = useState(false);
     // Help text expansion for URL input
     const [isInputFolded, setIsInputFolded] = useState(false);
+    // Summary expansion mode
+    const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
     // Helper: Get image hierarchy breadcrumbs
     const getImageHierarchy = (imageId: string) => {
@@ -365,7 +367,7 @@ export function Dashboard() {
 
                 <div className="grid md:grid-cols-12 gap-8">
                     {/* Left Col: Setup - Sticky Sidebar */}
-                    <div className="md:col-span-4 space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain">
+                    <div className={`md:col-span-4 space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar transition-all duration-500 ${isSummaryExpanded ? 'opacity-0 -translate-x-full pointer-events-none' : 'opacity-100 translate-x-0 md:block'} overscroll-contain`}>
 
                         {/* Help Cards */}
                         <AnimatePresence>
@@ -416,7 +418,7 @@ export function Dashboard() {
                         </AnimatePresence>
 
                         {/* 1. Document Selection */}
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 overflow-hidden">
+                        <div className={`transition-all duration-500 ease-in-out ${isSummaryExpanded ? 'hidden' : 'block'} space-y-4`}>
                             <div className="flex items-center justify-between mb-2">
                                 <h2 className="text-base font-bold flex items-center">
                                     <FileText className="w-4 h-4 mr-2 text-indigo-500" />
@@ -542,10 +544,19 @@ export function Dashboard() {
                                     className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mt-4 flex flex-col max-h-[400px]"
                                 >
                                     <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                                        <h2 className="text-base font-bold flex items-center">
-                                            <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                                            항목 요약
-                                        </h2>
+                                        <div className="flex items-center space-x-2">
+                                            <h2 className="text-base font-bold flex items-center">
+                                                <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                                                항목 요약
+                                            </h2>
+                                            <button
+                                                onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+                                                className={`p-1.5 rounded-lg transition-all ${isSummaryExpanded ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                                title={isSummaryExpanded ? "기본 보기" : "길게 보기"}
+                                            >
+                                                {isSummaryExpanded ? <Columns className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                                            </button>
+                                        </div>
                                         <button
                                             onClick={() => { setSelectedImageIds([]); setSelectedScopes([]); }}
                                             className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-tighter bg-gray-50 px-2 py-1 rounded-md transition-colors"
@@ -553,45 +564,62 @@ export function Dashboard() {
                                             전체 선택 해제
                                         </button>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4">
+                                    <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4 ${isSummaryExpanded ? 'p-10 p-6 pt-2' : ''}`}>
                                         {(() => {
-                                            if (!structure || selectedImageIds.length === 0) return <div className="text-center py-12 text-gray-300">
-                                                <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                                                <p className="text-[11px] font-bold">선택된 이미지가 없습니다.</p>
+                                            if (!structure || selectedImageIds.length === 0) return <div className="text-center py-24 text-gray-300">
+                                                <ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                                                <p className="text-sm font-bold">선택된 이미지가 없습니다.</p>
                                             </div>;
 
-                                            return structure.items.map((item: any, idx: number) => {
-                                                const selectedImagesInItem = item.images.filter((img: any) => selectedImageIds.includes(img.id));
-                                                if (selectedImagesInItem.length === 0) return null;
+                                            // Logic Change: Fix duplication by finding the single MOST SPECIFIC heading for each image
+                                            const headingMap: Record<string, { item: any, images: any[] }> = {};
 
-                                                const hierarchy = getImageHierarchy(selectedImagesInItem[0].id);
-                                                if (!hierarchy) return null;
+                                            selectedImageIds.forEach(id => {
+                                                // Find the specific item this image belongs to in structure.items
+                                                const item = structure.items.find((it: any) => it.images.some((img: any) => img.id === id));
+                                                if (item) {
+                                                    if (!headingMap[item.id]) headingMap[item.id] = { item, images: [] };
+                                                    const imgData = item.images.find((img: any) => img.id === id);
+                                                    headingMap[item.id].images.push(imgData);
+                                                }
+                                            });
 
+                                            // Render in document order
+                                            return structure.items.map((item: any) => {
+                                                const group = headingMap[item.id];
+                                                if (!group) return null;
+
+                                                const hierarchy = getImageHierarchy(group.images[0].id);
                                                 return (
-                                                    <div key={item.id || idx} className="bg-indigo-50/30 rounded-2xl p-3 border border-indigo-100/50 space-y-3">
-                                                        <div className="space-y-1">
-                                                            <div className="flex flex-wrap items-center gap-1 opacity-60">
-                                                                {hierarchy.slice(0, -1).map((step: string, sidx: number) => (
-                                                                    <React.Fragment key={sidx}>
-                                                                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{step}</span>
-                                                                        <ChevronRight className="w-2 h-2 text-gray-300" />
-                                                                    </React.Fragment>
-                                                                ))}
+                                                    <div key={item.id} className={`${isSummaryExpanded ? 'max-w-4xl mx-auto mb-10' : ''} bg-indigo-50/30 rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm`}>
+                                                        <div className="space-y-1.5">
+                                                            {hierarchy && hierarchy.length > 1 && (
+                                                                <div className="flex flex-wrap items-center gap-1 opacity-50">
+                                                                    {hierarchy.slice(0, -1).map((step: string, sidx: number) => (
+                                                                        <React.Fragment key={sidx}>
+                                                                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{step}</span>
+                                                                            <ChevronRight className="w-2 h-2 text-gray-300" />
+                                                                        </React.Fragment>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            <div className="flex items-center space-x-2">
+                                                                <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full" />
+                                                                <h4 className={`font-black text-indigo-900 leading-tight ${isSummaryExpanded ? 'text-base' : 'text-[11px]'}`}>
+                                                                    {item.title}
+                                                                </h4>
                                                             </div>
-                                                            <h4 className="text-[10px] font-black text-indigo-900 leading-tight">
-                                                                {hierarchy[hierarchy.length - 1]}
-                                                            </h4>
                                                         </div>
-                                                        <div className="grid grid-cols-4 gap-2">
-                                                            {selectedImagesInItem.map((img: any) => (
+                                                        <div className={`grid gap-3 ${isSummaryExpanded ? 'grid-cols-6' : 'grid-cols-4'}`}>
+                                                            {group.images.map((img: any) => (
                                                                 <button
                                                                     key={img.id}
                                                                     onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))}
-                                                                    className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-sm"
+                                                                    className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-md"
                                                                 >
-                                                                    <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40" />
-                                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                                                        <span className="text-[7px] font-black text-red-600 bg-white/90 px-1.5 py-0.5 rounded shadow-sm">제외</span>
+                                                                    <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
+                                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <div className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded shadow-lg transform scale-0 group-hover:scale-100 transition-transform">삭제</div>
                                                                     </div>
                                                                 </button>
                                                             ))}
