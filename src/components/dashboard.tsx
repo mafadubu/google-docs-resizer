@@ -40,7 +40,25 @@ export function Dashboard() {
     const [resizeStatus, setResizeStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
     const [resultMsg, setResultMsg] = useState("");
 
-    // Helper: Get image hierarchy breadcrumbs
+    const imageToHeadingMap = React.useMemo(() => {
+        if (!structure) return {} as Record<string, string>;
+        const map: Record<string, string> = {};
+        structure.items.forEach((item: any) => {
+            item.images.forEach((img: any) => {
+                const existing = map[img.uri];
+                if (!existing) {
+                    map[img.uri] = item.id;
+                } else {
+                    const existingItem = structure.items.find((it: any) => it.id === existing);
+                    if (existingItem && item.level > existingItem.level) {
+                        map[img.uri] = item.id;
+                    }
+                }
+            });
+        });
+        return map;
+    }, [structure]);
+
     const getImageHierarchy = (imageId: string) => {
         if (!structure) return null;
         for (const item of structure.items) {
@@ -328,29 +346,45 @@ export function Dashboard() {
                                         {(() => {
                                             if (!structure || selectedImageIds.length === 0) return <div className="text-center py-24 text-gray-300"><ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-10" /><p className="text-sm font-bold">선택된 이미지가 없습니다.</p></div>;
 
-                                            // Improved logic: Identify the single most specific heading for each selected image
-                                            const idToHeadingId: Record<string, string> = {};
-                                            selectedImageIds.forEach(id => {
-                                                const itemsContainingImage = structure.items.filter((it: any) => it.images.some((img: any) => img.id === id));
-                                                // Find the heading with the highest hierarchical level (e.g., H3 > H2)
-                                                const item = itemsContainingImage.sort((a: any, b: any) => (b.level || 0) - (a.level || 0))[0];
-                                                if (item) idToHeadingId[id] = item.id;
-                                            });
+                                            // Determine visibility of each heading in the summary
+                                            const isHeadingVisibleInSummary = (item: any) => {
+                                                // 1. Has selected images that "belong" here
+                                                const hasSelectedImages = item.images.some((img: any) =>
+                                                    selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id
+                                                );
+                                                if (hasSelectedImages) return true;
 
-                                            // Render chapters in document order
+                                                // 2. Has any descendant that is visible
+                                                const idx = structure.items.indexOf(item);
+                                                for (let i = idx + 1; i < structure.items.length; i++) {
+                                                    const next = structure.items[i];
+                                                    if (next.level > item.level) {
+                                                        const hasSelectedDescImages = next.images.some((img: any) =>
+                                                            selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === next.id
+                                                        );
+                                                        if (hasSelectedDescImages) return true;
+                                                    } else break;
+                                                }
+                                                return false;
+                                            };
+
                                             return structure.items.map((item: any) => {
-                                                // Filter chapter's images to only those belonging (specifically) to this item
-                                                const chapterImages = item.images.filter((img: any) => idToHeadingId[img.id] === item.id);
-                                                if (chapterImages.length === 0) return null;
+                                                if (!isHeadingVisibleInSummary(item)) return null;
 
-                                                const hierarchy = getImageHierarchy(chapterImages[0].id);
+                                                const chapterImages = item.images.filter((img: any) =>
+                                                    selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id
+                                                );
+
+                                                const hierarchy = getImageHierarchy(item.images[0]?.id || "");
+                                                const isTopLevel = item.level <= 2;
+
                                                 return (
-                                                    <div key={item.id} className="bg-indigo-50/30 rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm">
+                                                    <div key={item.id} className={`${isTopLevel ? 'bg-indigo-50/50' : 'bg-white border-dashed'} rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm`}>
                                                         <div className="space-y-1.5">
                                                             <div className="flex items-center space-x-2">
-                                                                <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full" />
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${isTopLevel ? 'bg-indigo-600' : 'bg-indigo-300'}`} />
                                                                 <div className="flex flex-col min-w-0">
-                                                                    {hierarchy && hierarchy.length > 1 && (
+                                                                    {hierarchy && hierarchy.length > 1 && !isTopLevel && (
                                                                         <div className="flex items-center space-x-1.5 opacity-60 mb-0.5">
                                                                             <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded uppercase tracking-tighter">
                                                                                 {hierarchy[hierarchy.length - 2]}
@@ -358,18 +392,20 @@ export function Dashboard() {
                                                                             <ChevronRight className="w-2 h-2 text-indigo-300" />
                                                                         </div>
                                                                     )}
-                                                                    <h4 className={`font-black text-indigo-900 leading-tight truncate text-[11px]`}>{item.title}</h4>
+                                                                    <h4 className={`font-black tracking-tight truncate ${isTopLevel ? 'text-indigo-950 text-xs' : 'text-indigo-900 text-[11px]'}`}>{item.title}</h4>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className={`grid gap-3 grid-cols-4`}>
-                                                            {chapterImages.map((img: any) => (
-                                                                <button key={img.id} onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))} className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-md">
-                                                                    <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
-                                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded shadow-lg transform scale-0 group-hover:scale-100 transition-transform">삭제</div></div>
-                                                                </button>
-                                                            ))}
-                                                        </div>
+                                                        {chapterImages.length > 0 && (
+                                                            <div className={`grid gap-3 grid-cols-4`}>
+                                                                {chapterImages.map((img: any) => (
+                                                                    <button key={img.id} onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))} className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-md">
+                                                                        <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
+                                                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded shadow-lg transform scale-0 group-hover:scale-100 transition-transform">삭제</div></div>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             });
@@ -437,40 +473,40 @@ export function Dashboard() {
                                                     return (
                                                         <div className="space-y-8">
                                                             {subItems.map(item => {
-                                                                // Filter images to only show in the most specific heading (lowest level/highest number)
-                                                                const filteredImages = item.images.filter((img: any) => {
-                                                                    const allParents = structure.items.filter((it: any) => it.images.some((i: any) => i.id === img.id));
-                                                                    const mostSpecificParent = allParents.sort((a: any, b: any) => (b.level || 0) - (a.level || 0))[0];
-                                                                    return mostSpecificParent.id === item.id;
-                                                                });
+                                                                const filteredImages = item.images.filter((img: any) =>
+                                                                    imageToHeadingMap[img.uri] === item.id
+                                                                );
 
-                                                                return filteredImages.length > 0 && (
+                                                                return (
                                                                     <div key={item.id} className="space-y-4">
                                                                         <div className="flex items-center space-x-2 border-b border-gray-50 pb-2">
                                                                             <span className="text-[10px] items-center flex font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-widest">H{item.level}</span>
                                                                             <h4 className="text-xs font-bold text-gray-700">{item.title}</h4>
                                                                         </div>
-                                                                        <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
-                                                                            {filteredImages.map((img: any) => {
-                                                                                const isImgSelected = selectedImageIds.includes(img.id);
-                                                                                // Find the index of this image in the original chapter's full list for the label
-                                                                                const originalIdx = item.images.findIndex((i: any) => i.id === img.id);
-                                                                                return (
-                                                                                    <div key={img.id} onClick={() => { isImgSelected ? setSelectedImageIds(prev => prev.filter(id => id !== img.id)) : setSelectedImageIds(prev => [...prev, img.id]); }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
-                                                                                        <div className="relative aspect-video flex items-center justify-center p-3">
-                                                                                            <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
-                                                                                            <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
-                                                                                                {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                                        {filteredImages.length > 0 ? (
+                                                                            <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
+                                                                                {filteredImages.map((img: any) => {
+                                                                                    const isImgSelected = selectedImageIds.includes(img.id);
+                                                                                    const originalIdx = item.images.findIndex((i: any) => i.id === img.id);
+                                                                                    return (
+                                                                                        <div key={img.id} onClick={() => { isImgSelected ? setSelectedImageIds(prev => prev.filter(id => id !== img.id)) : setSelectedImageIds(prev => [...prev, img.id]); }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
+                                                                                            <div className="relative aspect-video flex items-center justify-center p-3">
+                                                                                                <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
+                                                                                                <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
+                                                                                                    {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
+                                                                                                <span className="truncate">#{originalIdx + 1} ({img.type})</span>
+                                                                                                {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
                                                                                             </div>
                                                                                         </div>
-                                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
-                                                                                            <span className="truncate">#{originalIdx + 1} ({img.type})</span>
-                                                                                            {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="text-[10px] text-gray-300 italic pl-6">이 항목에는 직속 이미지가 없습니다. (하위 항목 확인)</div>
+                                                                        )}
                                                                     </div>
                                                                 );
                                                             })}
