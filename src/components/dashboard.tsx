@@ -533,7 +533,13 @@ export function Dashboard() {
                                                                         <CheckCircle className="w-3 h-3 mr-2 text-indigo-500" />
                                                                         <span className="text-[11px] font-bold text-indigo-900 truncate max-w-[150px]">{scope.label}</span>
                                                                     </div>
-                                                                    <button onClick={() => setSelectedScopes(prev => prev.filter(s => s.start !== scope.start))} className="text-[9px] text-gray-400 hover:text-red-500 font-bold">제거</button>
+                                                                    <button onClick={() => {
+                                                                        setSelectedScopes(prev => prev.filter(s => s.start !== scope.start));
+                                                                        if (chapter) {
+                                                                            const idsToRemove = chapter.images.map((img: any) => img.id);
+                                                                            setSelectedImageIds(prev => prev.filter(id => !idsToRemove.includes(id)));
+                                                                        }
+                                                                    }} className="text-[9px] text-gray-400 hover:text-red-500 font-bold">제거</button>
                                                                 </div>
                                                                 {chapter && chapter.images.length > 0 && (
                                                                     <div className="flex -space-x-2 overflow-hidden pl-1">
@@ -658,7 +664,15 @@ export function Dashboard() {
                                                             {currentChapter.images.map((img: any, i: number) => {
                                                                 const isImgSelected = selectedImageIds.includes(img.id);
                                                                 return (
-                                                                    <div key={img.id} onClick={() => isImgSelected ? setSelectedImageIds(prev => prev.filter(id => id !== img.id)) : setSelectedImageIds(prev => [...prev, img.id])} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
+                                                                    <div key={img.id} onClick={() => {
+                                                                        if (isImgSelected) {
+                                                                            setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                            // Also deselect the chapter scope if this image was part of one
+                                                                            setSelectedScopes(prev => prev.filter(s => s.start !== currentChapter.startIndex));
+                                                                        } else {
+                                                                            setSelectedImageIds(prev => [...prev, img.id]);
+                                                                        }
+                                                                    }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
                                                                         <div className="relative aspect-video flex items-center justify-center p-3">
                                                                             <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
                                                                             <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>{isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}</div>
@@ -722,18 +736,26 @@ export function Dashboard() {
                                                                     if (nextItem.level > currentLevel) descendants.push(nextItem);
                                                                     else break;
                                                                 }
+
                                                                 const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
-                                                                const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
+                                                                const itemsToSync = [item, ...descendants];
+                                                                const allImageIds = itemsToSync.flatMap(it => it.images.map((img: any) => img.id));
+
                                                                 if (isCurrentlySelected) {
-                                                                    const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
+                                                                    const rangesToRemove = itemsToSync.map(it => it.startIndex);
                                                                     setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
+                                                                    // Sync: Remove image IDs
+                                                                    setSelectedImageIds(prev => prev.filter(id => !allImageIds.includes(id)));
                                                                 } else {
-                                                                    const newScopes = [toScope(item), ...descendants.map(toScope)];
+                                                                    const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
+                                                                    const newScopes = itemsToSync.map(toScope);
                                                                     setSelectedScopes(prev => {
                                                                         const existingStarts = new Set(newScopes.map(s => s.start));
                                                                         const cleanPrev = prev.filter(s => !existingStarts.has(s.start));
                                                                         return [...cleanPrev, ...newScopes];
                                                                     });
+                                                                    // Sync: Add image IDs
+                                                                    setSelectedImageIds(prev => Array.from(new Set([...prev, ...allImageIds])));
                                                                 }
                                                             }} className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>{isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}</div>
                                                             <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>H{item.level}</span>
