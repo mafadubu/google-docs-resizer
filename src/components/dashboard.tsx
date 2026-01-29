@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck, ChevronUp } from "lucide-react";
+import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck, ChevronUp, User } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 import { WarningModal } from "@/components/warning-modal";
 import { SuccessModal } from "@/components/success-modal";
@@ -85,6 +85,7 @@ export function Dashboard() {
     const [targetWidth, setTargetWidth] = useState(10); // cm
     const [resizeStatus, setResizeStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
     const [resultMsg, setResultMsg] = useState("");
+    const [imgError, setImgError] = useState(false);
 
     const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const url = e.target.value;
@@ -223,11 +224,18 @@ export function Dashboard() {
                     </div>
                     {/* ... (user profile & logout) */}
                     <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 rounded-full">
-                        <img
-                            src={session?.user?.image || ""}
-                            alt="User"
-                            className="w-6 h-6 rounded-full"
-                        />
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border border-gray-200">
+                            {session?.user?.image && !imgError ? (
+                                <img
+                                    src={session.user.image}
+                                    alt="User"
+                                    className="w-full h-full object-cover"
+                                    onError={() => setImgError(true)}
+                                />
+                            ) : (
+                                <User className="w-4 h-4 text-gray-400" />
+                            )}
+                        </div>
                         <span className="text-sm font-medium text-gray-700">{session?.user?.name}</span>
                     </div>
                     <button

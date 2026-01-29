@@ -6,6 +6,7 @@ import { Providers } from "@/components/providers";
 const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://google-docs-resizer.vercel.app"),
   title: "Google Docs Image Resizer ✨",
   description: "Perfectly resize images in your Google Docs with one click. Simple, fast, and secure.",
   openGraph: {
