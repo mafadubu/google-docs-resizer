@@ -105,6 +105,36 @@ export function Dashboard() {
         localStorage.setItem("has-seen-guide", "true");
     };
 
+    // Helper: Scroll to element with offset if needed
+    const scrollToElement = (id: string, containerId?: string, autoNavigateId?: { type: 'chapter', id: string }) => {
+        setTimeout(() => {
+            let el = document.getElementById(id);
+
+            // If element not found and we have autoNavigate instruction
+            if (!el && autoNavigateId && autoNavigateId.type === 'chapter') {
+                setActiveChapterId(autoNavigateId.id);
+                // Retry after state change and re-render
+                setTimeout(() => {
+                    const retryEl = document.getElementById(id);
+                    if (retryEl) retryEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+                return;
+            }
+
+            if (el) {
+                if (containerId) {
+                    const container = document.getElementById(containerId);
+                    if (container) {
+                        const top = el.offsetTop - container.offsetTop - 20;
+                        container.scrollTo({ top, behavior: 'smooth' });
+                        return;
+                    }
+                }
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+    };
+
     const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const url = e.target.value;
         setDocUrl(url);
@@ -313,23 +343,24 @@ export function Dashboard() {
                                             )}
                                         </AnimatePresence>
                                     </div>
-                                    {structure && (
-                                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col space-y-4">
-                                            <div className="flex items-center justify-between">
-                                                <h2 className="text-base font-bold flex items-center text-gray-800"><Layout className="w-4 h-4 mr-2 text-indigo-500" />2. 환경 설정</h2>
-                                                <div className="px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-mono font-black text-2xl shadow-inner border border-indigo-100 flex items-center justify-center min-w-[100px]">{targetWidth}<span className="text-xs ml-1 opacity-50">cm</span></div>
-                                            </div>
-                                            <div className="flex items-center space-x-6 bg-gray-50/50 p-3 rounded-2xl border border-gray-50">
-                                                <input type="range" min="5" max="20" step="0.5" value={targetWidth} onChange={(e) => setTargetWidth(Number(e.target.value))} className="flex-1 accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
-                                                <div className="flex flex-col items-end min-w-[70px]"><span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter mb-0.5">이미지</span><div className="flex items-center text-xs font-bold text-gray-700">{selectedImageIds.length > 0 ? `${selectedImageIds.length}개` : selectedScopes.length === 0 ? "전체" : `${selectedScopes.length}개`}</div></div>
-                                            </div>
-                                            <button onClick={handleResize} disabled={resizeStatus === "processing"} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2">{resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3.5 h-3.5" /><span>크기 조정</span></>}</button>
-                                        </div>
-                                    )}
                                     {resultMsg && resizeStatus === 'error' && <div className="mt-4 p-3 rounded-lg text-sm flex items-center bg-red-50 text-red-700">{resultMsg}</div>}
                                 </motion.div>
                             )}
                         </AnimatePresence>
+
+                        {structure && (
+                            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col space-y-4 sticky top-0 z-20">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-base font-bold flex items-center text-gray-800"><Layout className="w-4 h-4 mr-2 text-indigo-500" />2. 환경 설정</h2>
+                                    <div className="px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-mono font-black text-2xl shadow-inner border border-indigo-100 flex items-center justify-center min-w-[100px]">{targetWidth}<span className="text-xs ml-1 opacity-50">cm</span></div>
+                                </div>
+                                <div className="flex items-center space-x-6 bg-gray-50/50 p-3 rounded-2xl border border-gray-50">
+                                    <input type="range" min="5" max="20" step="0.5" value={targetWidth} onChange={(e) => setTargetWidth(Number(e.target.value))} className="flex-1 accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                                    <div className="flex flex-col items-end min-w-[70px]"><span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter mb-0.5">이미지</span><div className="flex items-center text-xs font-bold text-gray-700">{selectedImageIds.length > 0 ? `${selectedImageIds.length}개` : selectedScopes.length === 0 ? "전체" : `${selectedScopes.length}개`}</div></div>
+                                </div>
+                                <button onClick={handleResize} disabled={resizeStatus === "processing"} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2">{resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3.5 h-3.5" /><span>크기 조정</span></>}</button>
+                            </div>
+                        )}
 
                         {/* Selected Items Summary Box */}
                         <AnimatePresence>
@@ -342,7 +373,7 @@ export function Dashboard() {
                                         </div>
                                         <button onClick={() => { setSelectedImageIds([]); setSelectedScopes([]); }} className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-tighter bg-gray-50 px-2 py-1 rounded-md transition-colors">전체 선택 해제</button>
                                     </div>
-                                    <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4`}>
+                                    <div id="summary-list" className={`flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4`}>
                                         {(() => {
                                             if (!structure || selectedImageIds.length === 0) return <div className="text-center py-24 text-gray-300"><ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-10" /><p className="text-sm font-bold">선택된 이미지가 없습니다.</p></div>;
 
@@ -379,7 +410,7 @@ export function Dashboard() {
                                                 const isTopLevel = item.level <= 2;
 
                                                 return (
-                                                    <div key={item.id} className={`${isTopLevel ? 'bg-indigo-50/50' : 'bg-white border-dashed'} rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm`}>
+                                                    <div key={item.id} id={`summary-heading-${item.id}`} className={`${isTopLevel ? 'bg-indigo-50/50' : 'bg-white border-dashed'} rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm transition-all`}>
                                                         <div className="space-y-1.5">
                                                             <div className="flex items-center space-x-2">
                                                                 <div className={`w-1.5 h-1.5 rounded-full ${isTopLevel ? 'bg-indigo-600' : 'bg-indigo-300'}`} />
@@ -399,7 +430,10 @@ export function Dashboard() {
                                                         {chapterImages.length > 0 && (
                                                             <div className={`grid gap-3 grid-cols-4`}>
                                                                 {chapterImages.map((img: any) => (
-                                                                    <button key={img.id} onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))} className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-md">
+                                                                    <button key={img.id} id={`summary-img-${img.id}`} onClick={() => {
+                                                                        setSelectedImageIds(prev => prev.filter(pid => pid !== img.id));
+                                                                        scrollToElement(`detail-img-${img.id}`, undefined, { type: 'chapter', id: item.id });
+                                                                    }} className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-md">
                                                                         <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
                                                                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded shadow-lg transform scale-0 group-hover:scale-100 transition-transform">삭제</div></div>
                                                                     </button>
@@ -478,7 +512,7 @@ export function Dashboard() {
                                                                 );
 
                                                                 return (
-                                                                    <div key={item.id} className="space-y-4">
+                                                                    <div key={item.id} id={`detail-heading-${item.id}`} className="space-y-4 pt-4">
                                                                         <div className="flex items-center space-x-2 border-b border-gray-50 pb-2">
                                                                             <span className="text-[10px] items-center flex font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-widest">H{item.level}</span>
                                                                             <h4 className="text-xs font-bold text-gray-700">{item.title}</h4>
@@ -489,7 +523,14 @@ export function Dashboard() {
                                                                                     const isImgSelected = selectedImageIds.includes(img.id);
                                                                                     const originalIdx = item.images.findIndex((i: any) => i.id === img.id);
                                                                                     return (
-                                                                                        <div key={img.id} onClick={() => { isImgSelected ? setSelectedImageIds(prev => prev.filter(id => id !== img.id)) : setSelectedImageIds(prev => [...prev, img.id]); }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
+                                                                                        <div key={img.id} id={`detail-img-${img.id}`} onClick={() => {
+                                                                                            if (isImgSelected) {
+                                                                                                setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                                            } else {
+                                                                                                setSelectedImageIds(prev => [...prev, img.id]);
+                                                                                            }
+                                                                                            scrollToElement(`summary-heading-${item.id}`, 'summary-list');
+                                                                                        }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
                                                                                             <div className="relative aspect-video flex items-center justify-center p-3">
                                                                                                 <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
                                                                                                 <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
@@ -519,7 +560,14 @@ export function Dashboard() {
                                                         <div className="space-y-8">
                                                             <div className="relative aspect-video bg-gray-50 rounded-3xl border border-gray-100 flex items-center justify-center p-8 overflow-hidden group">
                                                                 <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] opacity-30" /><motion.img key={activeImg.id} src={activeImg.uri} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-h-full max-w-full relative z-10 rounded-xl shadow-2xl" />
-                                                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20"><button onClick={() => isActiveSelected ? setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id)) : setSelectedImageIds(prev => [...prev, activeImg.id])} className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border shadow-sm'}`}>{isActiveSelected ? "선택 해제" : "현재 이미지 선택"}</button></div>
+                                                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20"><button onClick={() => {
+                                                                    if (isActiveSelected) {
+                                                                        setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
+                                                                    } else {
+                                                                        setSelectedImageIds(prev => [...prev, activeImg.id]);
+                                                                    }
+                                                                    scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
+                                                                }} className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border shadow-sm'}`}>{isActiveSelected ? "선택 해제" : "현재 이미지 선택"}</button></div>
                                                             </div>
                                                             <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
                                                                 {currentChapter.images.map((img: any, i: number) => {
