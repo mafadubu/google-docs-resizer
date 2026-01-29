@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck, ChevronUp, User } from "lucide-react";
+import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck, ChevronUp, User, ChevronLeft, ImageIcon, MousePointerClick } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 import { WarningModal } from "@/components/warning-modal";
 import { SuccessModal } from "@/components/success-modal";
@@ -13,7 +13,9 @@ export function Dashboard() {
     const [docUrl, setDocUrl] = useState("");
     const [loading, setLoading] = useState(false);
     const [structure, setStructure] = useState<any>(null);
-    const [selectedScopes, setSelectedScopes] = useState<Array<{ start: number; end: number; label: string }>>([]); // Empty = None selected (wait, logically empty usually means ALL in backend, but UI wants specific Select All behavior. If I change UI to "Select All populates list", then empty means empty. I should adjust backend logic to interpret empty as empty? Or keep it as ALL? 
+    const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
+    const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
+    const [selectedScopes, setSelectedScopes] = useState<Array<{ start: number; end: number; label: string }>>([]);
     // Wait, the user wants "Whole Document" click to fill all checkboxes.
     // If I fill all checkboxes, the array has all items.
     // If I uncheck all, the array is empty.
@@ -148,6 +150,8 @@ export function Dashboard() {
             alert(e.message);
         } finally {
             setLoading(false);
+            setActiveChapterId(null);
+            setSelectedImageIds([]);
         }
     };
 
@@ -159,7 +163,8 @@ export function Dashboard() {
             const payload: any = {
                 docId: structure.id,
                 targetWidthCm: targetWidth,
-                scopes: selectedScopes.length > 0 ? selectedScopes : undefined
+                scopes: selectedScopes.length > 0 ? selectedScopes : undefined,
+                selectedImageIds: selectedImageIds.length > 0 ? selectedImageIds : undefined
             };
 
             const res = await fetch("/api/doc/resize", {
@@ -418,11 +423,13 @@ export function Dashboard() {
                                         적용 범위 (Scope)
                                     </label>
                                     <div className="p-3 bg-indigo-50 text-indigo-900 rounded-xl text-sm font-medium border border-indigo-100 truncate">
-                                        {selectedScopes.length === 0
-                                            ? "선택된 챕터 없음 (문서 전체 모드 아님)"
-                                            : selectedScopes.length === structure.items.length
-                                                ? "문서 전체 선택됨"
-                                                : `${selectedScopes.length}개 챕터 선택됨`
+                                        {selectedImageIds.length > 0
+                                            ? `${selectedImageIds.length}개 이미지 직접 선택됨`
+                                            : selectedScopes.length === 0
+                                                ? "선택된 챕터 없음 (문서 전체 모드)"
+                                                : selectedScopes.length === structure.items.length
+                                                    ? "문서 전체 선택됨"
+                                                    : `${selectedScopes.length}개 챕터 선택됨`
                                         }
                                     </div>
                                     <p className="text-xs text-gray-400 mt-2">
@@ -467,107 +474,200 @@ export function Dashboard() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                <div
-                                    onClick={() => {
-                                        if (selectedScopes.length === structure.items.length) {
-                                            // Deselect All
-                                            setSelectedScopes([]);
-                                        } else {
-                                            // Select All Items
-                                            const allScopes = structure.items.map((it: any) => ({
-                                                start: it.startIndex,
-                                                end: it.scopeEndIndex,
-                                                label: it.title
-                                            }));
-                                            setSelectedScopes(allScopes);
-                                        }
-                                    }}
-                                    className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScopes.length === structure.items.length ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
-                                >
-                                    {/* Select All Checkbox */}
-                                    <div className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>
-                                        {selectedScopes.length === structure.items.length && <div className="w-2 h-2 bg-white rounded-sm" />}
-                                    </div>
-                                    <span className="font-semibold">문서 전체 (Whole Document)</span>
-                                </div>
+                                {activeChapterId ? (
+                                    <div className="space-y-6">
+                                        {/* Gallery Header */}
+                                        <div className="flex items-center justify-between mb-4 bg-white sticky top-0 py-2 z-10 border-b border-gray-50">
+                                            <button
+                                                onClick={() => setActiveChapterId(null)}
+                                                className="flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors"
+                                            >
+                                                <ChevronLeft className="w-4 h-4 mr-1" />
+                                                목차로 돌아가기
+                                            </button>
 
-                                {structure.items.map((item: any, idx: number) => {
-                                    const isSelected = selectedScopes.some(s => s.start === item.startIndex);
+                                            {/* Select All Images in this Chapter */}
+                                            {(() => {
+                                                const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                if (!currentChapter || currentChapter.images.length === 0) return null;
+                                                const allSelected = currentChapter.images.every((img: any) => selectedImageIds.includes(img.id));
 
-                                    return (
-                                        <div
-                                            key={idx}
-                                            onClick={() => {
-                                                // 1. Identify all descendants (children, grandchildren, etc.)
-                                                const descendants: any[] = [];
-                                                const currentLevel = item.level;
+                                                return (
+                                                    <button
+                                                        onClick={() => {
+                                                            const imgIds = currentChapter.images.map((img: any) => img.id);
+                                                            if (allSelected) {
+                                                                setSelectedImageIds(prev => prev.filter(id => !imgIds.includes(id)));
+                                                            } else {
+                                                                setSelectedImageIds(prev => Array.from(new Set([...prev, ...imgIds])));
+                                                            }
+                                                        }}
+                                                        className="text-xs font-bold text-gray-500 hover:text-indigo-600 transition-colors"
+                                                    >
+                                                        {allSelected ? "이미지 전체 해제" : "이미지 전체 선택"}
+                                                    </button>
+                                                );
+                                            })()}
+                                        </div>
 
-                                                for (let i = idx + 1; i < structure.items.length; i++) {
-                                                    const nextItem = structure.items[i];
-                                                    if (nextItem.level > currentLevel) {
-                                                        descendants.push(nextItem);
-                                                    } else {
-                                                        break; // Stop when we hit a sibling or parent
-                                                    }
+                                        {/* Image List */}
+                                        <div className="grid grid-cols-1 gap-6">
+                                            {(() => {
+                                                const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                if (!currentChapter) return null;
+                                                if (currentChapter.images.length === 0) {
+                                                    return (
+                                                        <div className="p-12 text-center text-gray-400">
+                                                            이 챕터에는 조절 가능한 이미지가 없습니다.
+                                                        </div>
+                                                    );
                                                 }
-
-                                                // 2. Determine "Toggle On" or "Toggle Off"
-                                                // If the clicked item itself is selected, we assume we want to UNSELECT it and all children.
-                                                // If it's NOT selected, we SELECT it and all children.
-                                                const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
-
-                                                // Helper to create scope object
-                                                const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
-
-                                                if (isCurrentlySelected) {
-                                                    // Unselect Parent AND Descendants
-                                                    const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
-                                                    setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
+                                                return currentChapter.images.map((img: any, i: number) => {
+                                                    const isImgSelected = selectedImageIds.includes(img.id);
+                                                    return (
+                                                        <div
+                                                            key={img.id}
+                                                            onClick={() => {
+                                                                if (isImgSelected) {
+                                                                    setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                } else {
+                                                                    setSelectedImageIds(prev => [...prev, img.id]);
+                                                                }
+                                                            }}
+                                                            className={`
+                                                                relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50
+                                                                ${isImgSelected ? 'border-indigo-500 shadow-lg shadow-indigo-100' : 'border-transparent hover:border-gray-200'}
+                                                            `}
+                                                        >
+                                                            <div className="relative aspect-video flex items-center justify-center p-4">
+                                                                <img
+                                                                    src={img.uri}
+                                                                    alt={`Img ${i}`}
+                                                                    className="max-h-full max-w-full rounded shadow-sm transition-transform group-hover:scale-105"
+                                                                />
+                                                                <div className={`absolute top-4 left-4 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
+                                                                    {isImgSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                                </div>
+                                                            </div>
+                                                            <div className="p-3 bg-white border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                                                                <span>이미지 #{i + 1} ({img.type})</span>
+                                                                {isImgSelected && <span className="font-bold text-indigo-600">선택됨</span>}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                });
+                                            })()}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div
+                                            onClick={() => {
+                                                if (selectedScopes.length === structure.items.length) {
+                                                    setSelectedScopes([]);
                                                 } else {
-                                                    // Select Parent AND Descendants (avoiding duplicates)
-                                                    // We filter out descendants that might already be selected to avoid duplicates, although React state updates usually handle uniqueness if we are careful.
-                                                    // Actually, easiest is to filter out overlap then add.
-
-                                                    const newScopes = [toScope(item), ...descendants.map(toScope)];
-
-                                                    setSelectedScopes(prev => {
-                                                        // Remove any existing entries of these items (to prevent duplicates) then add them
-                                                        const existingStarts = new Set(newScopes.map(s => s.start));
-                                                        const cleanPrev = prev.filter(s => !existingStarts.has(s.start));
-                                                        return [...cleanPrev, ...newScopes];
-                                                    });
+                                                    const allScopes = structure.items.map((it: any) => ({
+                                                        start: it.startIndex,
+                                                        end: it.scopeEndIndex,
+                                                        label: it.title
+                                                    }));
+                                                    setSelectedScopes(allScopes);
                                                 }
                                             }}
-                                            className={`
-                                            group p-3 rounded-xl cursor-pointer transition-all mb-1 select-none
-                                            ${isSelected
-                                                    ? 'bg-indigo-50 border-indigo-200 border text-indigo-900'
-                                                    : 'hover:bg-gray-50 border border-transparent text-gray-700'
-                                                }
-                                        `}
-                                            style={{ marginLeft: `${(item.level - 1) * 20}px` }}
+                                            className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScopes.length === structure.items.length ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
                                         >
-                                            <div className="flex items-center">
-                                                {/* Checkbox indicator */}
-                                                <div className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>
-                                                    {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
-                                                </div>
-
-                                                <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
-                                                    H{item.level}
-                                                </span>
-                                                <span className={item.level === 1 ? 'font-bold' : 'font-medium'}>
-                                                    {item.title}
-                                                </span>
+                                            <div className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>
+                                                {selectedScopes.length === structure.items.length && <div className="w-2 h-2 bg-white rounded-sm" />}
                                             </div>
+                                            <span className="font-semibold">문서 전체 (Whole Document)</span>
                                         </div>
-                                    );
-                                })}
 
-                                {structure.items.length === 0 && (
-                                    <div className="p-8 text-center text-gray-400">
-                                        제목(Heading)을 찾을 수 없습니다. 문서 전체 모드로 사용하세요.
-                                    </div>
+                                        {structure.items.map((item: any, idx: number) => {
+                                            const isSelected = selectedScopes.some(s => s.start === item.startIndex);
+
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    className={`
+                                                        group p-3 rounded-xl cursor-pointer transition-all mb-1 select-none flex items-center justify-between
+                                                        ${isSelected
+                                                            ? 'bg-indigo-50 border-indigo-200 border text-indigo-900'
+                                                            : 'hover:bg-gray-50 border border-transparent text-gray-700'
+                                                        }
+                                                    `}
+                                                    style={{ marginLeft: `${(item.level - 1) * 20}px` }}
+                                                >
+                                                    <div
+                                                        className="flex items-center flex-1"
+                                                        onClick={() => {
+                                                            // Clicking the text opens the gallery
+                                                            setActiveChapterId(item.id);
+                                                            // Scroll to top of right pane
+                                                            const pane = document.querySelector('.custom-scrollbar');
+                                                            if (pane) pane.scrollTop = 0;
+                                                        }}
+                                                    >
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const descendants: any[] = [];
+                                                                const currentLevel = item.level;
+                                                                for (let i = idx + 1; i < structure.items.length; i++) {
+                                                                    const nextItem = structure.items[i];
+                                                                    if (nextItem.level > currentLevel) {
+                                                                        descendants.push(nextItem);
+                                                                    } else {
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
+                                                                const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
+
+                                                                if (isCurrentlySelected) {
+                                                                    const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
+                                                                    setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
+                                                                } else {
+                                                                    const newScopes = [toScope(item), ...descendants.map(toScope)];
+                                                                    setSelectedScopes(prev => {
+                                                                        const existingStarts = new Set(newScopes.map(s => s.start));
+                                                                        const cleanPrev = prev.filter(s => !existingStarts.has(s.start));
+                                                                        return [...cleanPrev, ...newScopes];
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}
+                                                        >
+                                                            {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                        </div>
+
+                                                        <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
+                                                            H{item.level}
+                                                        </span>
+                                                        <span className={`${item.level === 1 ? 'font-bold' : 'font-medium'} flex-1`}>
+                                                            {item.title}
+                                                        </span>
+
+                                                        {item.imageCount > 0 && (
+                                                            <div className="ml-2 flex items-center text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                                                                <ImageIcon className="w-3 h-3 mr-1" />
+                                                                {item.imageCount}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                                        <MousePointerClick className="w-4 h-4 text-indigo-400" />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {structure.items.length === 0 && (
+                                            <div className="p-8 text-center text-gray-400">
+                                                제목(Heading)을 찾을 수 없습니다. 문서 전체 모드로 사용하세요.
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>

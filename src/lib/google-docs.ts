@@ -9,6 +9,13 @@ export interface DocumentOutlineItem {
     startIndex: number;
     endIndex: number;
     scopeEndIndex: number; // The end index of the "chapter"
+    imageCount: number;
+    images: Array<{
+        id: string;
+        uri: string;
+        startIndex: number;
+        type: 'inline' | 'positioned';
+    }>;
 }
 
 export interface DocumentStructure {
@@ -21,6 +28,7 @@ export interface DocumentStructure {
 export interface ResizeRequest {
     targetWidthCm: number;
     scopes?: Array<{ start: number; end: number }>;
+    selectedImageIds?: string[];
 }
 
 // --- Helpers ---
@@ -78,6 +86,8 @@ export const fetchDocumentStructure = async (docId: string, accessToken: string)
                         startIndex: el.startIndex || 0,
                         endIndex: el.endIndex || 0,
                         scopeEndIndex: 0, // Placeholder, updated below
+                        imageCount: 0,
+                        images: []
                     });
                 }
             }
@@ -87,14 +97,12 @@ export const fetchDocumentStructure = async (docId: string, accessToken: string)
     // Calculate scopeEndIndex (Chapter boundaries)
     for (let i = 0; i < outline.length; i++) {
         const current = outline[i];
-        // Default to end of document
         let nextSiblingOrParentIndex = doc.body?.content?.length
             ? (doc.body.content[doc.body.content.length - 1].endIndex || 0)
             : 0;
 
         for (let j = i + 1; j < outline.length; j++) {
             const next = outline[j];
-            // If we find a heading that is same level or higher (smaller number), that ends this section
             if (next.level <= current.level) {
                 nextSiblingOrParentIndex = next.startIndex;
                 break;
@@ -102,6 +110,63 @@ export const fetchDocumentStructure = async (docId: string, accessToken: string)
         }
         current.scopeEndIndex = nextSiblingOrParentIndex;
     }
+
+    // New: Collect images for each chapter
+    outline.forEach(chapter => {
+        const chapterImages: any[] = [];
+
+        const collectFromElement = (el: any) => {
+            if (el.paragraph) {
+                const elStart = el.startIndex || 0;
+                const isInScope = elStart >= chapter.startIndex && elStart < chapter.scopeEndIndex;
+
+                if (isInScope) {
+                    // Inline Images
+                    el.paragraph.elements?.forEach((element: any) => {
+                        if (element.inlineObjectElement) {
+                            const objId = element.inlineObjectElement.inlineObjectId;
+                            const obj = doc.inlineObjects?.[objId];
+                            const uri = obj?.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri;
+                            if (uri) {
+                                chapterImages.push({
+                                    id: objId,
+                                    uri: uri,
+                                    startIndex: element.startIndex,
+                                    type: 'inline'
+                                });
+                            }
+                        }
+                    });
+
+                    // Positioned Images
+                    el.paragraph.positionedObjectIds?.forEach((id: string) => {
+                        const obj = doc.positionedObjects?.[id];
+                        const uri = obj?.positionedObjectProperties?.embeddedObject?.imageProperties?.contentUri;
+                        if (uri) {
+                            chapterImages.push({
+                                id: id,
+                                uri: uri,
+                                startIndex: elStart,
+                                type: 'positioned'
+                            });
+                        }
+                    });
+                }
+            }
+            if (el.table) {
+                el.table.tableRows?.forEach((row: any) => {
+                    row.tableCells?.forEach((cell: any) => {
+                        cell.content?.forEach((contentEl: any) => collectFromElement(contentEl));
+                    });
+                });
+            }
+        };
+
+        doc.body?.content?.forEach((el: any) => collectFromElement(el));
+
+        chapter.images = chapterImages;
+        chapter.imageCount = chapterImages.length;
+    });
 
     return {
         title: doc.title || "Untitled Document",
@@ -140,9 +205,17 @@ export const calculateImageResizeRequests = (
             element.paragraph.elements?.forEach((el: any) => {
                 if (el.inlineObjectElement) {
                     const elStart = el.startIndex;
-                    if (!isInScope(elStart)) return;
-
                     const inlineObjId = el.inlineObjectElement.inlineObjectId;
+
+                    // Filtration Logic:
+                    // 1. If individual images are selected, check if this ID is in the list.
+                    // 2. Otherwise, check if it's within the selected chapters (scopes).
+                    if (options.selectedImageIds && options.selectedImageIds.length > 0) {
+                        if (!options.selectedImageIds.includes(inlineObjId)) return;
+                    } else if (!isInScope(elStart)) {
+                        return;
+                    }
+
                     const inlineObj = doc.inlineObjects?.[inlineObjId];
                     if (inlineObj) {
                         const props = inlineObj.inlineObjectProperties?.embeddedObject;
@@ -168,31 +241,36 @@ export const calculateImageResizeRequests = (
 
             // Process Positioned Objects (Floating) attached to this paragraph
             if (element.paragraph.positionedObjectIds) {
-                if (isInScope(pStart)) {
-                    element.paragraph.positionedObjectIds.forEach((id: string) => {
-                        const obj = doc.positionedObjects?.[id];
-                        if (obj) {
-                            const props = obj.positionedObjectProperties?.embeddedObject;
-                            const width = props?.size?.width?.magnitude;
-                            const height = props?.size?.height?.magnitude;
-                            const contentUri = props?.imageProperties?.contentUri;
+                element.paragraph.positionedObjectIds.forEach((id: string) => {
+                    // Filtration Logic (same as inline)
+                    if (options.selectedImageIds && options.selectedImageIds.length > 0) {
+                        if (!options.selectedImageIds.includes(id)) return;
+                    } else if (!isInScope(pStart)) {
+                        return;
+                    }
 
-                            if (width && height && contentUri) {
-                                const scale = targetWidthPt / width;
-                                const newHeightPt = height * scale;
+                    const obj = doc.positionedObjects?.[id];
+                    if (obj) {
+                        const props = obj.positionedObjectProperties?.embeddedObject;
+                        const width = props?.size?.width?.magnitude;
+                        const height = props?.size?.height?.magnitude;
+                        const contentUri = props?.imageProperties?.contentUri;
 
-                                actions.push({
-                                    type: 'positioned',
-                                    id: id,
-                                    anchorIndex: pStart, // Insert at start of paragraph
-                                    uri: contentUri,
-                                    width: targetWidthPt,
-                                    height: newHeightPt
-                                });
-                            }
+                        if (width && height && contentUri) {
+                            const scale = targetWidthPt / width;
+                            const newHeightPt = height * scale;
+
+                            actions.push({
+                                type: 'positioned',
+                                id: id,
+                                anchorIndex: pStart,
+                                uri: contentUri,
+                                width: targetWidthPt,
+                                height: newHeightPt
+                            });
                         }
-                    });
-                }
+                    }
+                });
             }
         }
 
