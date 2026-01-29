@@ -297,23 +297,53 @@ export const calculateImageResizeRequests = (
     });
 
     const requests: any[] = [];
+    const originalIds: string[] = []; // Track which original ID each insert request corresponds to
 
     actions.forEach(action => {
-        // Both inline and positioned images contain an EmbeddedObject that holds the size.
-        // The API uses updateEmbeddedObjectProperties to resize either.
-        requests.push({
-            updateEmbeddedObjectProperties: {
-                objectId: action.id,
-                embeddedObjectProperties: {
-                    size: {
+        if (action.type === 'inline') {
+            // 1. Insert New Image
+            requests.push({
+                insertInlineImage: {
+                    uri: action.uri,
+                    location: { index: action.index },
+                    objectSize: {
                         width: { magnitude: targetWidthPt, unit: 'PT' },
                         height: { magnitude: action.height, unit: 'PT' }
                     }
-                },
-                fields: 'embeddedObject.size'
-            }
-        });
+                }
+            });
+            originalIds.push(action.id);
+
+            // 2. Delete Old Image
+            requests.push({
+                deleteContentRange: {
+                    range: {
+                        startIndex: action.index + 1,
+                        endIndex: action.index + 2
+                    }
+                }
+            });
+        } else if (action.type === 'positioned') {
+            // 1. Delete Positioned Object
+            requests.push({
+                deletePositionedObject: {
+                    objectId: action.id
+                }
+            });
+            // 2. Insert New Inline Image at Anchor Paragraph Start
+            requests.push({
+                insertInlineImage: {
+                    uri: action.uri,
+                    location: { index: action.anchorIndex },
+                    objectSize: {
+                        width: { magnitude: targetWidthPt, unit: 'PT' },
+                        height: { magnitude: action.height, unit: 'PT' }
+                    }
+                }
+            });
+            originalIds.push(action.id);
+        }
     });
 
-    return requests;
+    return { requests, originalIds };
 };

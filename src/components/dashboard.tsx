@@ -217,6 +217,27 @@ export function Dashboard() {
                 setWarningMsg("크기를 조절할 이미지를 찾지 못했습니다. 선택 범위를 확인해 주세요.");
                 setShowWarning(true);
             } else {
+                // Update IDs in state if mapping provided
+                if (data.newIdMapping) {
+                    const mapping = data.newIdMapping;
+
+                    // 1. Update selectedImageIds
+                    setSelectedImageIds(prev => prev.map(id => mapping[id] || id));
+
+                    // 2. Update structure.items[].images[].id
+                    if (structure) {
+                        const newStructure = { ...structure };
+                        newStructure.items = newStructure.items.map((item: any) => ({
+                            ...item,
+                            images: item.images.map((img: any) => ({
+                                ...img,
+                                id: mapping[img.id] || img.id
+                            }))
+                        }));
+                        setStructure(newStructure);
+                    }
+                }
+
                 setResizeStatus("success");
                 setResultMsg(data.message);
                 setSuccessMsg(data.message); // Show popup

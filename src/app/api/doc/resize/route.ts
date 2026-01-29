@@ -27,7 +27,7 @@ export async function POST(req: Request) {
         const doc = docRes.data;
 
         // 2. Calculate requests
-        const requests = calculateImageResizeRequests(doc, {
+        const { requests, originalIds } = calculateImageResizeRequests(doc, {
             targetWidthCm,
             scopes: Array.isArray(scopes) ? scopes : undefined,
             selectedImageIds: Array.isArray(selectedImageIds) ? selectedImageIds : undefined
@@ -38,12 +38,28 @@ export async function POST(req: Request) {
         }
 
         // 3. Batch Update
-        // Google Docs BatchUpdate allows limited requests per call, but usually safe to send a bunch.
-        await docs.documents.batchUpdate({
+        const response = await docs.documents.batchUpdate({
             documentId: docId,
             requestBody: {
                 requests: requests,
             },
+        });
+
+        // 4. Extract New IDs and create mapping
+        // BatchUpdate replies contain the result of each request in order.
+        // We only care about insertInlineImage replies.
+        const newIdMapping: Record<string, string> = {};
+        let insertCount = 0;
+
+        response.data.replies?.forEach((reply) => {
+            if (reply.insertInlineImage) {
+                const oldId = originalIds[insertCount];
+                const newId = reply.insertInlineImage.objectId;
+                if (oldId && newId) {
+                    newIdMapping[oldId] = newId;
+                }
+                insertCount++;
+            }
         });
 
         // Update stats (fire and forget)
@@ -51,8 +67,9 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             success: true,
-            count: requests.length,
-            message: `Successfully resized ${requests.length} images.`
+            count: insertCount,
+            newIdMapping,
+            message: `Successfully resized ${insertCount} images.`
         });
 
     } catch (error: any) {
