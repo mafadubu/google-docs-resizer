@@ -106,16 +106,16 @@ export function Dashboard() {
     };
 
     // Helper: Scroll to element with offset if needed
-    const scrollToElement = (id: string, containerId?: string, autoNavigateId?: { type: 'chapter', id: string }) => {
+    const scrollToElement = (id: string, containerId?: string, autoNavigateId?: { type: 'chapter' | 'heading', id: string, fallbackId?: string }) => {
         setTimeout(() => {
-            let el = document.getElementById(id);
+            let el = document.getElementById(id) || (autoNavigateId?.fallbackId ? document.getElementById(autoNavigateId.fallbackId) : null);
 
             // If element not found and we have autoNavigate instruction
             if (!el && autoNavigateId && autoNavigateId.type === 'chapter') {
                 setActiveChapterId(autoNavigateId.id);
                 // Retry after state change and re-render
                 setTimeout(() => {
-                    const retryEl = document.getElementById(id);
+                    const retryEl = document.getElementById(id) || (autoNavigateId.fallbackId ? document.getElementById(autoNavigateId.fallbackId) : null);
                     if (retryEl) retryEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 300);
                 return;
@@ -349,16 +349,16 @@ export function Dashboard() {
                         </AnimatePresence>
 
                         {structure && (
-                            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col space-y-4 sticky top-0 z-20">
+                            <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 flex flex-col space-y-3 sticky top-0 z-20">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-base font-bold flex items-center text-gray-800"><Layout className="w-4 h-4 mr-2 text-indigo-500" />2. 환경 설정</h2>
-                                    <div className="px-5 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-mono font-black text-2xl shadow-inner border border-indigo-100 flex items-center justify-center min-w-[100px]">{targetWidth}<span className="text-xs ml-1 opacity-50">cm</span></div>
+                                    <h2 className="text-sm font-bold flex items-center text-gray-800"><Layout className="w-3.5 h-3.5 mr-1.5 text-indigo-500" />2. 환경 설정</h2>
+                                    <div className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg font-mono font-black text-xl shadow-inner border border-indigo-100 flex items-center justify-center min-w-[70px]">{targetWidth}<span className="text-[10px] ml-0.5 opacity-50 font-sans">cm</span></div>
                                 </div>
-                                <div className="flex items-center space-x-6 bg-gray-50/50 p-3 rounded-2xl border border-gray-50">
+                                <div className="flex items-center space-x-4 bg-gray-50/50 p-2 rounded-xl border border-gray-50">
                                     <input type="range" min="5" max="20" step="0.5" value={targetWidth} onChange={(e) => setTargetWidth(Number(e.target.value))} className="flex-1 accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
-                                    <div className="flex flex-col items-end min-w-[70px]"><span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter mb-0.5">이미지</span><div className="flex items-center text-xs font-bold text-gray-700">{selectedImageIds.length > 0 ? `${selectedImageIds.length}개` : selectedScopes.length === 0 ? "전체" : `${selectedScopes.length}개`}</div></div>
+                                    <div className="flex flex-col items-end min-w-[50px]"><span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mb-0.5">이미지</span><div className="flex items-center text-[10px] font-bold text-gray-700">{selectedImageIds.length > 0 ? `${selectedImageIds.length}개` : selectedScopes.length === 0 ? "전체" : `${selectedScopes.length}개`}</div></div>
                                 </div>
-                                <button onClick={handleResize} disabled={resizeStatus === "processing"} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2">{resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3.5 h-3.5" /><span>크기 조정</span></>}</button>
+                                <button onClick={handleResize} disabled={resizeStatus === "processing"} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-[11px] shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2">{resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3 h-3" /><span>크기 조정</span></>}</button>
                             </div>
                         )}
 
@@ -529,7 +529,7 @@ export function Dashboard() {
                                                                                             } else {
                                                                                                 setSelectedImageIds(prev => [...prev, img.id]);
                                                                                             }
-                                                                                            scrollToElement(`summary-heading-${item.id}`, 'summary-list');
+                                                                                            scrollToElement(`summary-img-${img.id}`, 'summary-list', { type: 'heading', id: item.id, fallbackId: `summary-heading-${item.id}` });
                                                                                         }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
                                                                                             <div className="relative aspect-video flex items-center justify-center p-3">
                                                                                                 <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
@@ -566,7 +566,7 @@ export function Dashboard() {
                                                                     } else {
                                                                         setSelectedImageIds(prev => [...prev, activeImg.id]);
                                                                     }
-                                                                    scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
+                                                                    scrollToElement(`summary-img-${activeImg.id}`, 'summary-list', { type: 'heading', id: currentChapter.id, fallbackId: `summary-heading-${currentChapter.id}` });
                                                                 }} className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border shadow-sm'}`}>{isActiveSelected ? "선택 해제" : "현재 이미지 선택"}</button></div>
                                                             </div>
                                                             <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
