@@ -1,8 +1,13 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { useState, useEffect } from "react";
-import { Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle, ShieldCheck, ChevronUp, User, ChevronLeft, ImageIcon, MousePointerClick, Grid3X3, Maximize2, Columns } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+    Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle,
+    ShieldCheck, ChevronUp, User, ChevronLeft, ChevronRight, ImageIcon,
+    MousePointerClick, Grid3X3, Maximize2, Columns, LayoutList,
+    AlertCircle, Info, ExternalLink, HelpCircle, Copy, ArrowRight, Trash2
+} from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 import { WarningModal } from "@/components/warning-modal";
 import { SuccessModal } from "@/components/success-modal";
@@ -53,7 +58,37 @@ export function Dashboard() {
     // UI State: Controls whether the input is locked (Document Loaded state)
     // We separate this from 'structure' so we can Reset the input without clearing the screen
     const [isLoaded, setIsLoaded] = useState(false);
+    // Help text expansion for URL input
     const [isInputFolded, setIsInputFolded] = useState(false);
+
+    // Helper: Get image hierarchy breadcrumbs
+    const getImageHierarchy = (imageId: string) => {
+        if (!structure) return null;
+        for (const item of structure.items) {
+            const img = item.images.find((i: any) => i.id === imageId);
+            if (img) {
+                // Find parents (H1 > H2 > ...)
+                const parents: string[] = [];
+                const currentIdx = structure.items.indexOf(item);
+                let currentLevel = item.level;
+
+                // Add the current item's title first
+                parents.unshift(item.title);
+
+                // Walk backwards to find parents
+                for (let i = currentIdx - 1; i >= 0; i--) {
+                    const candidate = structure.items[i];
+                    if (candidate.level < currentLevel) {
+                        parents.unshift(candidate.title);
+                        currentLevel = candidate.level;
+                    }
+                    if (currentLevel === 1) break;
+                }
+                return parents;
+            }
+        }
+        return null;
+    };
 
     // Handle token refresh errors
     useEffect(() => {
@@ -519,70 +554,56 @@ export function Dashboard() {
                                         </button>
                                     </div>
                                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4">
-                                        {/* Selected Chapters (Visual) */}
-                                        {selectedScopes.length > 0 && (
-                                            <div className="space-y-2">
-                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">선택된 챕터 ({selectedScopes.length}개)</p>
-                                                <div className="space-y-1">
-                                                    {selectedScopes.map((scope: any, idx: number) => {
-                                                        const chapter = structure.items.find((it: any) => it.startIndex === scope.start);
-                                                        return (
-                                                            <div key={idx} className="bg-indigo-50/40 rounded-xl p-2 border border-indigo-100/50 flex flex-col space-y-2">
-                                                                <div className="flex items-center justify-between">
-                                                                    <div className="flex items-center">
-                                                                        <CheckCircle className="w-3 h-3 mr-2 text-indigo-500" />
-                                                                        <span className="text-[11px] font-bold text-indigo-900 truncate max-w-[150px]">{scope.label}</span>
-                                                                    </div>
-                                                                    <button onClick={() => {
-                                                                        setSelectedScopes(prev => prev.filter(s => s.start !== scope.start));
-                                                                        if (chapter) {
-                                                                            const idsToRemove = chapter.images.map((img: any) => img.id);
-                                                                            setSelectedImageIds(prev => prev.filter(id => !idsToRemove.includes(id)));
-                                                                        }
-                                                                    }} className="text-[9px] text-gray-400 hover:text-red-500 font-bold">제거</button>
-                                                                </div>
-                                                                {chapter && chapter.images.length > 0 && (
-                                                                    <div className="flex -space-x-2 overflow-hidden pl-1">
-                                                                        {chapter.images.slice(0, 5).map((img: any) => (
-                                                                            <div key={img.id} className="w-6 h-6 rounded-md border-2 border-white bg-gray-100 overflow-hidden shadow-sm">
-                                                                                <img src={img.uri} className="w-full h-full object-cover" />
-                                                                            </div>
-                                                                        ))}
-                                                                        {chapter.images.length > 5 && (
-                                                                            <div className="w-6 h-6 rounded-md border-2 border-white bg-indigo-100 flex items-center justify-center text-[8px] font-black text-indigo-600 shadow-sm">
-                                                                                +{chapter.images.length - 5}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
+                                        {/* Grouped Selected Images */}
+                                        {(() => {
+                                            const groups: Record<string, { path: string[], images: any[] }> = {};
+                                            selectedImageIds.forEach(id => {
+                                                const hierarchy = getImageHierarchy(id);
+                                                if (hierarchy) {
+                                                    const pathKey = hierarchy.join(" > ");
+                                                    if (!groups[pathKey]) groups[pathKey] = { path: hierarchy, images: [] };
 
-                                        {/* Individual Selected Images (Visual Grid) */}
-                                        {selectedImageIds.length > 0 && (
-                                            <div className="space-y-2">
-                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">개별 선택 이미지 ({selectedImageIds.length}개)</p>
-                                                <div className="grid grid-cols-4 gap-2">
-                                                    {selectedImageIds.map((id) => {
-                                                        let imageUri = null;
-                                                        for (const chapter of structure.items) {
-                                                            const img = chapter.images.find((i: any) => i.id === id);
-                                                            if (img) { imageUri = img.uri; break; }
+                                                    // Find image data
+                                                    for (const item of structure.items) {
+                                                        const img = item.images.find((i: any) => i.id === id);
+                                                        if (img) {
+                                                            groups[pathKey].images.push(img);
+                                                            break;
                                                         }
-                                                        return (
-                                                            <button key={id} onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== id))} className="group relative aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-100 hover:border-red-300 transition-all shadow-sm">
-                                                                {imageUri ? <img src={imageUri} className="w-full h-full object-cover group-hover:opacity-40" /> : <ImageIcon className="w-4 h-4 text-gray-400" />}
-                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"><span className="text-[8px] font-black text-red-600 bg-white/90 px-1 py-0.5 rounded shadow-sm uppercase tracking-tighter">제외</span></div>
+                                                    }
+                                                }
+                                            });
+
+                                            const groupKeys = Object.keys(groups);
+                                            if (groupKeys.length === 0) return <div className="text-center py-8 text-gray-300 text-[11px]">선택된 이미지가 없습니다.</div>;
+
+                                            return groupKeys.map(key => (
+                                                <div key={key} className="bg-indigo-50/40 rounded-xl p-3 border border-indigo-100/50 space-y-2">
+                                                    <div className="flex flex-wrap items-center gap-1">
+                                                        {groups[key].path.map((step, sidx) => (
+                                                            <React.Fragment key={sidx}>
+                                                                <span className={`text-[9px] font-bold ${sidx === groups[key].path.length - 1 ? 'text-indigo-600' : 'text-gray-400'}`}>{step}</span>
+                                                                {sidx < groups[key].path.length - 1 && <ChevronRight className="w-2 h-2 text-gray-300" />}
+                                                            </React.Fragment>
+                                                        ))}
+                                                    </div>
+                                                    <div className="grid grid-cols-5 gap-1.5">
+                                                        {groups[key].images.map(img => (
+                                                            <button
+                                                                key={img.id}
+                                                                onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))}
+                                                                className="group relative aspect-square bg-white rounded-lg overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-sm"
+                                                            >
+                                                                <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40" />
+                                                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                                    <span className="text-[7px] font-black text-red-600 bg-white/90 px-1 py-0.5 rounded shadow-sm">제외</span>
+                                                                </div>
                                                             </button>
-                                                        );
-                                                    })}
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            ));
+                                        })()}
                                     </div>
                                 </motion.div>
                             )}
@@ -659,31 +680,51 @@ export function Dashboard() {
                                                 if (currentChapter.images.length === 0) return <div className="p-12 text-center text-gray-400">이 챕터에는 조절 가능한 이미지가 없습니다.</div>;
 
                                                 if (viewMode === 'grid') {
+                                                    // Group images in grid by their respective sub-headings
+                                                    const currentIdx = structure.items.indexOf(currentChapter);
+                                                    const subItems = [currentChapter];
+                                                    for (let j = currentIdx + 1; j < structure.items.length; j++) {
+                                                        if (structure.items[j].level > currentChapter.level) subItems.push(structure.items[j]);
+                                                        else break;
+                                                    }
+
                                                     return (
-                                                        <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
-                                                            {currentChapter.images.map((img: any, i: number) => {
-                                                                const isImgSelected = selectedImageIds.includes(img.id);
-                                                                return (
-                                                                    <div key={img.id} onClick={() => {
-                                                                        if (isImgSelected) {
-                                                                            setSelectedImageIds(prev => prev.filter(id => id !== img.id));
-                                                                            // Also deselect the chapter scope if this image was part of one
-                                                                            setSelectedScopes(prev => prev.filter(s => s.start !== currentChapter.startIndex));
-                                                                        } else {
-                                                                            setSelectedImageIds(prev => [...prev, img.id]);
-                                                                        }
-                                                                    }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
-                                                                        <div className="relative aspect-video flex items-center justify-center p-3">
-                                                                            <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
-                                                                            <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>{isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}</div>
+                                                        <div className="space-y-8">
+                                                            {subItems.map(item => (
+                                                                item.images.length > 0 && (
+                                                                    <div key={item.id} className="space-y-4">
+                                                                        <div className="flex items-center space-x-2 border-b border-gray-50 pb-2">
+                                                                            <span className="text-[10px] items-center flex font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-widest">H{item.level}</span>
+                                                                            <h4 className="text-xs font-bold text-gray-700">{item.title}</h4>
                                                                         </div>
-                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500"><span className="truncate">#{i + 1} ({img.type})</span>{isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}</div>
+                                                                        <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
+                                                                            {item.images.map((img: any, i: number) => {
+                                                                                const isImgSelected = selectedImageIds.includes(img.id);
+                                                                                return (
+                                                                                    <div key={img.id} onClick={() => {
+                                                                                        if (isImgSelected) {
+                                                                                            setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                                            setSelectedScopes(prev => prev.filter(s => s.start !== item.startIndex));
+                                                                                        } else {
+                                                                                            setSelectedImageIds(prev => [...prev, img.id]);
+                                                                                        }
+                                                                                    }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
+                                                                                        <div className="relative aspect-video flex items-center justify-center p-3">
+                                                                                            <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
+                                                                                            <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>{isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}</div>
+                                                                                        </div>
+                                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500"><span className="truncate">#{i + 1} ({img.type})</span>{isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}</div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
                                                                     </div>
-                                                                );
-                                                            })}
+                                                                )
+                                                            ))}
                                                         </div>
                                                     );
-                                                } else {
+                                                }
+                                                else {
                                                     const activeImg = currentChapter.images[carouselIndex] || currentChapter.images[0];
                                                     const isActiveSelected = selectedImageIds.includes(activeImg.id);
                                                     return (
