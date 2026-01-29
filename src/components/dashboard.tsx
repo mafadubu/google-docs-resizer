@@ -247,7 +247,7 @@ export function Dashboard() {
                 <AnimatePresence>{showSuccess && <SuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} message={successMsg} />}</AnimatePresence>
                 <div className="grid md:grid-cols-12 gap-8">
                     {/* Left Col: Setup - Sticky Sidebar */}
-                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-12' : 'md:col-span-4'} space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain`}>
+                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-4'} space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain`}>
                         <AnimatePresence>
                             {!isSummaryExpanded && (
                                 <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }} className="space-y-4">
@@ -316,7 +316,7 @@ export function Dashboard() {
                         {/* Selected Items Summary Box */}
                         <AnimatePresence>
                             {structure && (selectedImageIds.length > 0 || selectedScopes.length > 0) && (
-                                <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }} className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mt-4 flex flex-col ${isSummaryExpanded ? 'min-h-[600px] w-full max-w-7xl mx-auto' : 'max-h-[400px]'}`}>
+                                <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }} className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mt-4 flex flex-col ${isSummaryExpanded ? 'min-h-[500px]' : 'max-h-[400px]'}`}>
                                     <div className="flex items-center justify-between mb-3 flex-shrink-0">
                                         <div className="flex items-center space-x-2">
                                             <h2 className="text-base font-bold flex items-center"><CheckCircle className="w-4 h-4 mr-2 text-green-500" />항목 요약</h2>
@@ -324,25 +324,28 @@ export function Dashboard() {
                                         </div>
                                         <button onClick={() => { setSelectedImageIds([]); setSelectedScopes([]); }} className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-tighter bg-gray-50 px-2 py-1 rounded-md transition-colors">전체 선택 해제</button>
                                     </div>
-                                    <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4 ${isSummaryExpanded ? 'p-10 p-6 pt-2' : ''}`}>
+                                    <div className={`flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4`}>
                                         {(() => {
                                             if (!structure || selectedImageIds.length === 0) return <div className="text-center py-24 text-gray-300"><ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-10" /><p className="text-sm font-bold">선택된 이미지가 없습니다.</p></div>;
-                                            const headingMap: Record<string, { item: any, images: any[] }> = {};
+
+                                            // Improved logic: Identify the single most specific heading for each selected image
+                                            const idToHeadingId: Record<string, string> = {};
                                             selectedImageIds.forEach(id => {
                                                 const itemsContainingImage = structure.items.filter((it: any) => it.images.some((img: any) => img.id === id));
+                                                // Find the heading with the highest hierarchical level (e.g., H3 > H2)
                                                 const item = itemsContainingImage.sort((a: any, b: any) => (b.level || 0) - (a.level || 0))[0];
-                                                if (item) {
-                                                    if (!headingMap[item.id]) headingMap[item.id] = { item, images: [] };
-                                                    const imgData = item.images.find((img: any) => img.id === id);
-                                                    headingMap[item.id].images.push(imgData);
-                                                }
+                                                if (item) idToHeadingId[id] = item.id;
                                             });
+
+                                            // Render chapters in document order
                                             return structure.items.map((item: any) => {
-                                                const group = headingMap[item.id];
-                                                if (!group) return null;
-                                                const hierarchy = getImageHierarchy(group.images[0].id);
+                                                // Filter chapter's images to only those belonging (specifically) to this item
+                                                const chapterImages = item.images.filter((img: any) => idToHeadingId[img.id] === item.id);
+                                                if (chapterImages.length === 0) return null;
+
+                                                const hierarchy = getImageHierarchy(chapterImages[0].id);
                                                 return (
-                                                    <div key={item.id} className={`${isSummaryExpanded ? 'max-w-4xl mx-auto mb-10' : ''} bg-indigo-50/30 rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm`}>
+                                                    <div key={item.id} className="bg-indigo-50/30 rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm">
                                                         <div className="space-y-1.5">
                                                             {hierarchy && hierarchy.length > 1 && (
                                                                 <div className="flex flex-wrap items-center gap-1 opacity-50">
@@ -351,10 +354,10 @@ export function Dashboard() {
                                                                     ))}
                                                                 </div>
                                                             )}
-                                                            <div className="flex items-center space-x-2"><div className="w-1.5 h-1.5 bg-indigo-400 rounded-full" /><h4 className={`font-black text-indigo-900 leading-tight ${isSummaryExpanded ? 'text-base' : 'text-[11px]'}`}>{item.title}</h4></div>
+                                                            <div className="flex items-center space-x-2"><div className="w-1.5 h-1.5 bg-indigo-400 rounded-full" /><h4 className={`font-black text-indigo-900 leading-tight text-[11px]`}>{item.title}</h4></div>
                                                         </div>
-                                                        <div className={`grid gap-3 ${isSummaryExpanded ? 'grid-cols-6' : 'grid-cols-4'}`}>
-                                                            {group.images.map((img: any) => (
+                                                        <div className={`grid gap-3 ${isSummaryExpanded ? 'grid-cols-4' : 'grid-cols-4'}`}>
+                                                            {chapterImages.map((img: any) => (
                                                                 <button key={img.id} onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== img.id))} className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-md">
                                                                     <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
                                                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded shadow-lg transform scale-0 group-hover:scale-100 transition-transform">삭제</div></div>
@@ -372,7 +375,7 @@ export function Dashboard() {
                     </div>
 
                     {/* Right Col: Outline / Content */}
-                    <div className={`md:col-span-8 transition-all duration-500 ${isSummaryExpanded ? 'hidden' : 'block'}`}>
+                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block`}>
                         {structure ? (
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
                                 <div className="sticky top-24 z-40 bg-white border-b border-gray-100 shadow-sm rounded-t-2xl">
