@@ -107,32 +107,39 @@ export function Dashboard() {
 
     // Helper: Scroll to element with offset if needed
     const scrollToElement = (id: string, containerId?: string, autoNavigateId?: { type: 'chapter' | 'heading', id: string, fallbackId?: string }) => {
-        setTimeout(() => {
-            let el = document.getElementById(id) || (autoNavigateId?.fallbackId ? document.getElementById(autoNavigateId.fallbackId) : null);
+        const tryScroll = (retryCount = 0) => {
+            const el = document.getElementById(id) || (autoNavigateId?.fallbackId ? document.getElementById(autoNavigateId.fallbackId) : null);
 
-            // If element not found and we have autoNavigate instruction
+            // 1. If element not found and we need to navigate chapters (Right Col)
             if (!el && autoNavigateId && autoNavigateId.type === 'chapter') {
                 setActiveChapterId(autoNavigateId.id);
-                // Retry after state change and re-render
-                setTimeout(() => {
-                    const retryEl = document.getElementById(id) || (autoNavigateId.fallbackId ? document.getElementById(autoNavigateId.fallbackId) : null);
-                    if (retryEl) retryEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 300);
+                if (retryCount < 5) setTimeout(() => tryScroll(retryCount + 1), 250);
                 return;
             }
 
+            // 2. Element found
             if (el) {
+                // Standard scrollIntoView handles nested scroll containers (sidebar + internal list) automatically
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Force internal container scroll if provided (additional centering)
                 if (containerId) {
                     const container = document.getElementById(containerId);
-                    if (container) {
-                        const top = el.offsetTop - container.offsetTop - 20;
-                        container.scrollTo({ top, behavior: 'smooth' });
-                        return;
+                    if (container && container.scrollHeight > container.clientHeight) {
+                        const rect = el.getBoundingClientRect();
+                        const containerRect = container.getBoundingClientRect();
+                        const targetTop = container.scrollTop + (rect.top - containerRect.top) - (containerRect.height / 2) + (rect.height / 2);
+                        container.scrollTo({ top: targetTop, behavior: 'smooth' });
                     }
                 }
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else if (retryCount < 8) {
+                // 3. Keep trying (Useful when summary box is mounting for the first time)
+                setTimeout(() => tryScroll(retryCount + 1), 100);
             }
-        }, 100);
+        };
+
+        // Start scrolling attempt
+        setTimeout(() => tryScroll(0), 50);
     };
 
     const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
