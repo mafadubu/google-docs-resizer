@@ -116,23 +116,21 @@ export function Dashboard() {
     }, [activeChapterId]);
 
     const handleBackToOutline = () => {
-        const currentId = activeChapterId;
+        const idToTarget = activeChapterId;
         setActiveChapterId(null);
 
-        if (currentId) {
-            setHighlightedChapterId(currentId);
+        if (idToTarget) {
+            setHighlightedChapterId(idToTarget);
             setTimeout(() => setHighlightedChapterId(null), 2500);
-        }
 
-        // Use timeout to ensure DOM is updated before scrolling
-        setTimeout(() => {
-            if (currentId) {
-                const element = document.getElementById(`chapter-${currentId}`);
+            // Wait for multiple frames to ensure view has swapped and height is stable
+            setTimeout(() => {
+                const element = document.getElementById(`chapter-${idToTarget}`);
                 if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    element.scrollIntoView({ behavior: 'auto', block: 'center' });
                 }
-            }
-        }, 100);
+            }, 100);
+        }
     };
 
     const handleReset = () => {
@@ -514,198 +512,198 @@ export function Dashboard() {
                 {/* Right Col: Outline */}
                 <div className="md:col-span-8">
                     {structure ? (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-full min-h-[500px] flex flex-col relative overflow-hidden">
-                            {/* Persistent Sticky Header - Fix: top-0 with PT-24 to align with global nav */}
-                            <div className="sticky top-0 z-40 bg-white shadow-sm rounded-t-2xl pt-24 -mt-24">
-                                <div className="p-6 border-b border-gray-100 bg-white/95 backdrop-blur-md">
-                                    <h2 className="text-lg font-bold text-gray-900">{structure.title}</h2>
-                                    <p className="text-sm text-gray-500">
-                                        {activeChapterId
-                                            ? "이미지를 직접 선택하여 크기를 조절할 수 있습니다."
-                                            : "아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다."}
-                                    </p>
-                                </div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
+                            {/* Persistent Sticky Header - Combined & Compact */}
+                            <div className="sticky top-24 z-40 bg-white border-b border-gray-100 shadow-sm rounded-t-2xl">
+                                {!activeChapterId ? (
+                                    <div className="p-4 bg-white/95 backdrop-blur-md rounded-t-2xl">
+                                        <h2 className="text-base font-bold text-gray-900 truncate">{structure.title}</h2>
+                                        <p className="text-xs text-gray-500">아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다.</p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-gray-50 bg-white/95 backdrop-blur-md rounded-t-2xl">
+                                        {/* Row 1: Navigation */}
+                                        <div className="flex items-center justify-between p-3">
+                                            <button
+                                                onClick={handleBackToOutline}
+                                                className="flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors text-xs font-bold"
+                                            >
+                                                <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                                                목차로
+                                            </button>
 
-                                <AnimatePresence mode="wait">
-                                    {activeChapterId && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: "auto", opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            className="px-6 pb-4 space-y-3 overflow-hidden"
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <button
-                                                    onClick={handleBackToOutline}
-                                                    className="flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-2 rounded-xl transition-all hover:scale-105"
-                                                >
-                                                    <ChevronLeft className="w-4 h-4 mr-1" />
-                                                    목차로
-                                                </button>
+                                            <div className="flex-1 px-4 text-center">
+                                                <h3 className="text-sm font-black text-gray-900 truncate">
+                                                    {structure.items.find((it: any) => it.id === activeChapterId)?.title}
+                                                </h3>
+                                            </div>
 
-                                                <div className="flex-1 px-4 text-center">
-                                                    {(() => {
-                                                        const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                        return (
-                                                            <span className="text-sm font-bold text-gray-900 line-clamp-1">
-                                                                {currentChapter?.title}
-                                                            </span>
-                                                        );
-                                                    })()}
-                                                </div>
+                                            <button
+                                                onClick={() => {
+                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                    if (!currentChapter) return;
+                                                    const allChapterImageIds = currentChapter.images.map((img: any) => img.id);
+                                                    const areAllSelected = allChapterImageIds.every((id: string) => selectedImageIds.includes(id));
 
-                                                {/* Select All Images in this Chapter */}
+                                                    if (areAllSelected) {
+                                                        setSelectedImageIds(prev => prev.filter(id => !allChapterImageIds.includes(id)));
+                                                    } else {
+                                                        setSelectedImageIds(prev => Array.from(new Set([...prev, ...allChapterImageIds])));
+                                                    }
+                                                }}
+                                                className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 transition-colors px-2 py-1"
+                                            >
                                                 {(() => {
                                                     const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                    if (!currentChapter || currentChapter.images.length === 0) return null;
-                                                    const allSelected = currentChapter.images.every((img: any) => selectedImageIds.includes(img.id));
-
-                                                    return (
-                                                        <button
-                                                            onClick={() => {
-                                                                const imgIds = currentChapter.images.map((img: any) => img.id);
-                                                                if (allSelected) {
-                                                                    setSelectedImageIds(prev => prev.filter(id => !imgIds.includes(id)));
-                                                                } else {
-                                                                    setSelectedImageIds(prev => Array.from(new Set([...prev, ...imgIds])));
-                                                                }
-                                                            }}
-                                                            className={`text-xs font-bold px-3 py-2 rounded-xl transition-colors ${allSelected ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:bg-gray-50'}`}
-                                                        >
-                                                            {allSelected ? "전체 해제" : "전체 선택"}
-                                                        </button>
-                                                    );
+                                                    if (!currentChapter) return "전체 선택";
+                                                    const allIds = currentChapter.images.map((img: any) => img.id);
+                                                    return allIds.every((id: string) => selectedImageIds.includes(id)) ? "선택 해제" : "전체 선택";
                                                 })()}
+                                            </button>
+                                        </div>
+
+                                        {/* Row 2: Controls */}
+                                        <div className="flex items-center justify-between p-2 px-3">
+                                            <div className="flex items-center bg-gray-50 rounded-xl p-1">
+                                                <button
+                                                    onClick={() => setViewMode('grid')}
+                                                    className={`flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                >
+                                                    <Grid3X3 className="w-3.5 h-3.5 mr-1.5" />
+                                                    그리드
+                                                </button>
+                                                <button
+                                                    onClick={() => setViewMode('carousel')}
+                                                    className={`flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                >
+                                                    <Maximize2 className="w-3.5 h-3.5 mr-1.5" />
+                                                    캐러셀
+                                                </button>
                                             </div>
 
-                                            {/* Sub Header: View Mode & Controls */}
-                                            <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                                                <div className="flex bg-gray-100 p-1 rounded-xl">
-                                                    <button
-                                                        onClick={() => setViewMode('grid')}
-                                                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                                    >
-                                                        <Grid3X3 className="w-3.5 h-3.5" />
-                                                        <span>그리드</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setViewMode('carousel')}
-                                                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'carousel' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                                    >
-                                                        <Maximize2 className="w-3.5 h-3.5" />
-                                                        <span>캐러셀</span>
-                                                    </button>
+                                            {viewMode === 'grid' && (
+                                                <div className="flex items-center space-x-1 border-l border-gray-100 pl-4">
+                                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mr-2">COLUMNS</span>
+                                                    {[1, 2, 3, 4, 5].map(num => (
+                                                        <button
+                                                            key={num}
+                                                            onClick={() => setGridCols(num)}
+                                                            className={`w-6 h-6 rounded-md text-[10px] font-black transition-all ${gridCols === num ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-300 hover:bg-gray-100 hover:text-gray-600'}`}
+                                                        >
+                                                            {num}
+                                                        </button>
+                                                    ))}
                                                 </div>
-
-                                                {viewMode === 'grid' && (
-                                                    <div className="flex items-center space-x-2">
-                                                        <span className="text-[10px] uppercase font-black text-gray-400">Columns</span>
-                                                        <div className="flex bg-gray-100 p-0.5 rounded-lg">
-                                                            {[1, 2, 3, 4, 5].map(n => (
-                                                                <button
-                                                                    key={n}
-                                                                    onClick={() => setGridCols(n)}
-                                                                    className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-all ${gridCols === n ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                >
-                                                                    {n}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                <AnimatePresence>
-                                    {activeChapterId ? (
-                                        <motion.div
-                                            key="gallery"
-                                            layoutId={`chapter-${activeChapterId}`}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0, scale: 0.95 }}
-                                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                                            className="space-y-6"
-                                        >
-                                            {/* (Header removed from here as it's now global/sticky) */}
+                                {activeChapterId ? (
+                                    <div className="space-y-6">
+                                        {/* View Content */}
+                                        <div>
+                                            {(() => {
+                                                const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                if (!currentChapter) return null;
+                                                if (currentChapter.images.length === 0) {
+                                                    return (
+                                                        <div className="p-12 text-center text-gray-400">
+                                                            이 챕터에는 조절 가능한 이미지가 없습니다.
+                                                        </div>
+                                                    );
+                                                }
 
-                                            {/* View Content */}
-                                            <div>
-                                                {(() => {
-                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                    if (!currentChapter) return null;
-                                                    if (currentChapter.images.length === 0) {
-                                                        return (
-                                                            <div className="p-12 text-center text-gray-400">
-                                                                이 챕터에는 조절 가능한 이미지가 없습니다.
-                                                            </div>
-                                                        );
-                                                    }
-
-                                                    if (viewMode === 'grid') {
-                                                        return (
-                                                            <div
-                                                                className="grid gap-6"
-                                                                style={{
-                                                                    gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
-                                                                }}
-                                                            >
-                                                                {currentChapter.images.map((img: any, i: number) => {
-                                                                    const isImgSelected = selectedImageIds.includes(img.id);
-                                                                    return (
-                                                                        <div
-                                                                            key={img.id}
-                                                                            onClick={() => {
-                                                                                if (isImgSelected) {
-                                                                                    setSelectedImageIds(prev => prev.filter(id => id !== img.id));
-                                                                                } else {
-                                                                                    setSelectedImageIds(prev => [...prev, img.id]);
-                                                                                }
-                                                                            }}
-                                                                            className={`
+                                                if (viewMode === 'grid') {
+                                                    return (
+                                                        <div
+                                                            className="grid gap-6"
+                                                            style={{
+                                                                gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
+                                                            }}
+                                                        >
+                                                            {currentChapter.images.map((img: any, i: number) => {
+                                                                const isImgSelected = selectedImageIds.includes(img.id);
+                                                                return (
+                                                                    <div
+                                                                        key={img.id}
+                                                                        onClick={() => {
+                                                                            if (isImgSelected) {
+                                                                                setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                            } else {
+                                                                                setSelectedImageIds(prev => [...prev, img.id]);
+                                                                            }
+                                                                        }}
+                                                                        className={`
                                                                             relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group
                                                                             ${isImgSelected ? 'border-indigo-500 shadow-lg shadow-indigo-100' : 'border-transparent hover:border-gray-200'}
                                                                         `}
-                                                                        >
-                                                                            <div className="relative aspect-video flex items-center justify-center p-3">
-                                                                                <img
-                                                                                    src={img.uri}
-                                                                                    alt={`Img ${i}`}
-                                                                                    className="max-h-full max-w-full rounded shadow-sm transition-transform group-hover:scale-110 object-contain"
-                                                                                />
-                                                                                <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
-                                                                                    {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
-                                                                                <span className="truncate">#{i + 1} ({img.type})</span>
-                                                                                {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
+                                                                    >
+                                                                        <div className="relative aspect-video flex items-center justify-center p-3">
+                                                                            <img
+                                                                                src={img.uri}
+                                                                                alt={`Img ${i}`}
+                                                                                className="max-h-full max-w-full rounded shadow-sm transition-transform group-hover:scale-110 object-contain"
+                                                                            />
+                                                                            <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
+                                                                                {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                                                                             </div>
                                                                         </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        );
-                                                    } else {
-                                                        // Carousel Mode
-                                                        const activeImg = currentChapter.images[carouselIndex] || currentChapter.images[0];
-                                                        const isActiveSelected = selectedImageIds.includes(activeImg.id);
+                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
+                                                                            <span className="truncate">#{i + 1} ({img.type})</span>
+                                                                            {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    // Carousel Mode
+                                                    const activeImg = currentChapter.images[carouselIndex] || currentChapter.images[0];
+                                                    const isActiveSelected = selectedImageIds.includes(activeImg.id);
 
-                                                        return (
-                                                            <div className="space-y-6">
-                                                                {/* Big Preview */}
-                                                                <div
-                                                                    className={`
+                                                    return (
+                                                        <div className="space-y-6">
+                                                            {/* Big Preview */}
+                                                            <div
+                                                                className={`
                                                                     relative rounded-3xl border-2 transition-all overflow-hidden bg-gray-100 group flex flex-col h-[400px]
                                                                     ${isActiveSelected ? 'border-indigo-500 shadow-xl shadow-indigo-100' : 'border-gray-200 shadow-sm'}
                                                                 `}
+                                                            >
+                                                                <div
+                                                                    className="flex-1 relative flex items-center justify-center p-8 bg-gray-50/50 cursor-pointer"
+                                                                    onClick={() => {
+                                                                        if (isActiveSelected) {
+                                                                            setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
+                                                                        } else {
+                                                                            setSelectedImageIds(prev => [...prev, activeImg.id]);
+                                                                        }
+                                                                    }}
                                                                 >
-                                                                    <div
-                                                                        className="flex-1 relative flex items-center justify-center p-8 bg-gray-50/50 cursor-pointer"
+                                                                    <img
+                                                                        src={activeImg.uri}
+                                                                        className="max-h-full max-w-full rounded-lg shadow-2xl transition-transform group-hover:scale-105 object-contain"
+                                                                    />
+
+                                                                    <div className={`absolute top-6 left-6 flex items-center space-x-3 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl shadow-lg border-2 ${isActiveSelected ? 'border-indigo-500' : 'border-transparent'}`}>
+                                                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isActiveSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
+                                                                            {isActiveSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                                                                        </div>
+                                                                        <span className="text-sm font-black text-gray-900">IMAGE #{carouselIndex + 1}</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{activeImg.type}</span>
+                                                                        <span className="text-xs text-gray-300">|</span>
+                                                                        <span className="text-xs text-gray-400">문서 내 위치: {activeImg.startIndex}</span>
+                                                                    </div>
+                                                                    <button
                                                                         onClick={() => {
                                                                             if (isActiveSelected) {
                                                                                 setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
@@ -713,198 +711,162 @@ export function Dashboard() {
                                                                                 setSelectedImageIds(prev => [...prev, activeImg.id]);
                                                                             }
                                                                         }}
+                                                                        className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                                                     >
-                                                                        <img
-                                                                            src={activeImg.uri}
-                                                                            className="max-h-full max-w-full rounded-lg shadow-2xl transition-transform group-hover:scale-105 object-contain"
-                                                                        />
-
-                                                                        <div className={`absolute top-6 left-6 flex items-center space-x-3 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl shadow-lg border-2 ${isActiveSelected ? 'border-indigo-500' : 'border-transparent'}`}>
-                                                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isActiveSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
-                                                                                {isActiveSelected && <div className="w-2 h-2 bg-white rounded-full" />}
-                                                                            </div>
-                                                                            <span className="text-sm font-black text-gray-900">IMAGE #{carouselIndex + 1}</span>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
-                                                                        <div className="flex items-center space-x-2">
-                                                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{activeImg.type}</span>
-                                                                            <span className="text-xs text-gray-300">|</span>
-                                                                            <span className="text-xs text-gray-400">문서 내 위치: {activeImg.startIndex}</span>
-                                                                        </div>
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                if (isActiveSelected) {
-                                                                                    setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
-                                                                                } else {
-                                                                                    setSelectedImageIds(prev => [...prev, activeImg.id]);
-                                                                                }
-                                                                            }}
-                                                                            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                                                                        >
-                                                                            {isActiveSelected ? "선택 해제" : "현재 이미지 선택"}
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Thumbnail Track */}
-                                                                <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
-                                                                    {currentChapter.images.map((img: any, i: number) => {
-                                                                        const isSelected = selectedImageIds.includes(img.id);
-                                                                        const isActive = carouselIndex === i;
-                                                                        return (
-                                                                            <button
-                                                                                key={img.id}
-                                                                                onClick={() => setCarouselIndex(i)}
-                                                                                className={`
-                                                                                relative flex-shrink-0 w-24 h-24 rounded-2xl border-2 transition-all p-2 overflow-hidden
-                                                                                ${isActive ? 'border-indigo-500 ring-4 ring-indigo-50 bg-white' : 'border-gray-100 bg-gray-50 hover:border-gray-300'}
-                                                                            `}
-                                                                            >
-                                                                                <img src={img.uri} className="w-full h-full object-contain rounded" />
-                                                                                {isSelected && (
-                                                                                    <div className="absolute top-1 right-1">
-                                                                                        <CheckCircle className="w-4 h-4 text-indigo-600 bg-white rounded-full" />
-                                                                                    </div>
-                                                                                )}
-                                                                                <div className="absolute bottom-1 left-1 bg-black/60 text-[8px] text-white px-1.5 rounded-md font-bold">
-                                                                                    #{i + 1}
-                                                                                </div>
-                                                                            </button>
-                                                                        );
-                                                                    })}
+                                                                        {isActiveSelected ? "선택 해제" : "현재 이미지 선택"}
+                                                                    </button>
                                                                 </div>
                                                             </div>
-                                                        );
-                                                    }
-                                                })()}
-                                            </div>
-                                        </motion.div>
-                                    ) : (
-                                        <motion.div
-                                            key="outline"
-                                            layoutId="outline-view"
-                                            initial={{ opacity: 0, scale: 0.95 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                                            className="space-y-1"
+
+                                                            {/* Thumbnail Track */}
+                                                            <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
+                                                                {currentChapter.images.map((img: any, i: number) => {
+                                                                    const isSelected = selectedImageIds.includes(img.id);
+                                                                    const isActive = carouselIndex === i;
+                                                                    return (
+                                                                        <button
+                                                                            key={img.id}
+                                                                            onClick={() => setCarouselIndex(i)}
+                                                                            className={`
+                                                                            relative flex-shrink-0 w-24 h-24 rounded-2xl border-2 transition-all p-2 overflow-hidden
+                                                                            ${isActive ? 'border-indigo-500 ring-4 ring-indigo-50 bg-white' : 'border-gray-100 bg-gray-50 hover:border-gray-300'}
+                                                                        `}
+                                                                        >
+                                                                            <img src={img.uri} className="w-full h-full object-contain rounded" />
+                                                                            {isSelected && (
+                                                                                <div className="absolute top-1 right-1">
+                                                                                    <CheckCircle className="w-4 h-4 text-indigo-600 bg-white rounded-full" />
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="absolute bottom-1 left-1 bg-black/60 text-[8px] text-white px-1.5 rounded-md font-bold">
+                                                                                #{i + 1}
+                                                                            </div>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                            })()}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1">
+                                        <div
+                                            onClick={() => {
+                                                if (selectedScopes.length === structure.items.length) {
+                                                    setSelectedScopes([]);
+                                                } else {
+                                                    setSelectedScopes(structure.items.map((it: any) => ({
+                                                        start: it.startIndex,
+                                                        end: it.scopeEndIndex,
+                                                        label: it.title
+                                                    })));
+                                                }
+                                            }}
+                                            className="group flex items-center p-4 rounded-xl border-2 border-dashed border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all cursor-pointer mb-6"
                                         >
-                                            <div
-                                                onClick={() => {
-                                                    if (selectedScopes.length === structure.items.length) {
-                                                        setSelectedScopes([]);
-                                                    } else {
-                                                        const allScopes = structure.items.map((it: any) => ({
-                                                            start: it.startIndex,
-                                                            end: it.scopeEndIndex,
-                                                            label: it.title
-                                                        }));
-                                                        setSelectedScopes(allScopes);
-                                                    }
-                                                }}
-                                                className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScopes.length === structure.items.length ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
-                                            >
-                                                <div className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>
-                                                    {selectedScopes.length === structure.items.length && <div className="w-2 h-2 bg-white rounded-sm" />}
-                                                </div>
-                                                <span className="font-semibold">문서 전체 (Whole Document)</span>
+                                            <div className={`w-6 h-6 rounded-full border-2 mr-3 flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}>
+                                                {selectedScopes.length === structure.items.length && <CheckCircle className="w-4 h-4 text-white" />}
                                             </div>
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-gray-900">문서 전체 선택</h3>
+                                                <p className="text-xs text-gray-500">모든 제목과 내용을 한 번에 선택합니다.</p>
+                                            </div>
+                                        </div>
 
-                                            {structure.items.map((item: any, idx: number) => {
-                                                const isSelected = selectedScopes.some(s => s.start === item.startIndex);
+                                        {structure.items.map((item: any, idx: number) => {
+                                            const isSelected = selectedScopes.some(s => s.start === item.startIndex);
 
-                                                return (
-                                                    <motion.div
-                                                        key={item.id || idx}
-                                                        id={`chapter-${item.id}`}
-                                                        layoutId={`chapter-${item.id}`}
-                                                        initial={false}
-                                                        animate={{
-                                                            backgroundColor: highlightedChapterId === item.id ? "rgba(163, 230, 53, 0.4)" : isSelected ? "rgba(238, 242, 255, 1)" : "rgba(255, 255, 255, 0)",
-                                                            scale: highlightedChapterId === item.id ? 1.02 : 1,
-                                                            borderColor: highlightedChapterId === item.id ? "#a3e635" : isSelected ? "#c7d2fe" : "rgba(0,0,0,0)"
+                                            return (
+                                                <motion.div
+                                                    key={item.id || idx}
+                                                    id={`chapter-${item.id}`}
+                                                    initial={false}
+                                                    animate={{
+                                                        backgroundColor: highlightedChapterId === item.id ? "rgba(163, 230, 53, 0.4)" : isSelected ? "rgba(238, 242, 255, 1)" : "rgba(255, 255, 255, 0)",
+                                                        scale: highlightedChapterId === item.id ? 1.02 : 1,
+                                                        borderColor: highlightedChapterId === item.id ? "#84cc16" : isSelected ? "#c7d2fe" : "rgba(0,0,0,0)"
+                                                    }}
+                                                    transition={{ duration: highlightedChapterId === item.id ? 0.3 : 0.8 }}
+                                                    className={`
+                                                    group p-3 rounded-xl cursor-pointer mb-1 select-none flex items-center justify-between border
+                                                    ${isSelected ? 'text-indigo-900 border-indigo-200' : 'hover:bg-gray-50 text-gray-700 border-transparent'}
+                                                `}
+                                                    style={{ marginLeft: `${(item.level - 1) * 20}px` }}
+                                                >
+                                                    <div
+                                                        className="flex items-center flex-1"
+                                                        onClick={() => {
+                                                            // Clicking the text opens the gallery
+                                                            setActiveChapterId(item.id);
+                                                            // Scroll to top of page/right pane
+                                                            window.scrollTo({ top: 0, behavior: 'auto' });
                                                         }}
-                                                        transition={{ duration: highlightedChapterId === item.id ? 0.3 : 1 }}
-                                                        className={`
-                                                        group p-3 rounded-xl cursor-pointer mb-1 select-none flex items-center justify-between border
-                                                        ${isSelected ? 'text-indigo-900' : 'hover:bg-gray-50 text-gray-700'}
-                                                    `}
-                                                        style={{ marginLeft: `${(item.level - 1) * 20}px` }}
                                                     >
                                                         <div
-                                                            className="flex items-center flex-1"
-                                                            onClick={() => {
-                                                                // Clicking the text opens the gallery
-                                                                setActiveChapterId(item.id);
-                                                                // Scroll to top of page/right pane
-                                                                window.scrollTo({ top: 0, behavior: 'auto' });
-                                                            }}
-                                                        >
-                                                            <div
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const descendants: any[] = [];
-                                                                    const currentLevel = item.level;
-                                                                    for (let i = idx + 1; i < structure.items.length; i++) {
-                                                                        const nextItem = structure.items[i];
-                                                                        if (nextItem.level > currentLevel) {
-                                                                            descendants.push(nextItem);
-                                                                        } else {
-                                                                            break;
-                                                                        }
-                                                                    }
-                                                                    const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
-                                                                    const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
-
-                                                                    if (isCurrentlySelected) {
-                                                                        const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
-                                                                        setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const descendants: any[] = [];
+                                                                const currentLevel = item.level;
+                                                                for (let i = idx + 1; i < structure.items.length; i++) {
+                                                                    const nextItem = structure.items[i];
+                                                                    if (nextItem.level > currentLevel) {
+                                                                        descendants.push(nextItem);
                                                                     } else {
-                                                                        const newScopes = [toScope(item), ...descendants.map(toScope)];
-                                                                        setSelectedScopes(prev => {
-                                                                            const existingStarts = new Set(newScopes.map(s => s.start));
-                                                                            const cleanPrev = prev.filter(s => !existingStarts.has(s.start));
-                                                                            return [...cleanPrev, ...newScopes];
-                                                                        });
+                                                                        break;
                                                                     }
-                                                                }}
-                                                                className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}
-                                                            >
-                                                                {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                                }
+                                                                const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
+                                                                const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
+
+                                                                if (isCurrentlySelected) {
+                                                                    const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
+                                                                    setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
+                                                                } else {
+                                                                    const newScopes = [toScope(item), ...descendants.map(toScope)];
+                                                                    setSelectedScopes(prev => {
+                                                                        const existingStarts = new Set(newScopes.map(s => s.start));
+                                                                        const cleanPrev = prev.filter(s => !existingStarts.has(s.start));
+                                                                        return [...cleanPrev, ...newScopes];
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}
+                                                        >
+                                                            {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                        </div>
+
+                                                        <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
+                                                            H{item.level}
+                                                        </span>
+                                                        <span className={`${item.level === 1 ? 'font-bold' : 'font-medium'} flex-1`}>
+                                                            {item.title}
+                                                        </span>
+
+                                                        {item.imageCount > 0 && (
+                                                            <div className="ml-2 flex items-center text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                                                                <ImageIcon className="w-3 h-3 mr-1" />
+                                                                {item.imageCount}
                                                             </div>
+                                                        )}
+                                                    </div>
 
-                                                            <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
-                                                                H{item.level}
-                                                            </span>
-                                                            <span className={`${item.level === 1 ? 'font-bold' : 'font-medium'} flex-1`}>
-                                                                {item.title}
-                                                            </span>
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                                        <MousePointerClick className="w-4 h-4 text-indigo-400" />
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
 
-                                                            {item.imageCount > 0 && (
-                                                                <div className="ml-2 flex items-center text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
-                                                                    <ImageIcon className="w-3 h-3 mr-1" />
-                                                                    {item.imageCount}
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                                                            <MousePointerClick className="w-4 h-4 text-indigo-400" />
-                                                        </div>
-                                                    </motion.div>
-                                                );
-                                            })}
-
-                                            {structure.items.length === 0 && (
-                                                <div className="p-8 text-center text-gray-400">
-                                                    제목(Heading)을 찾을 수 없습니다. 문서 전체 모드로 사용하세요.
-                                                </div>
-                                            )}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                        {structure.items.length === 0 && (
+                                            <div className="p-8 text-center text-gray-400">
+                                                제목(Heading)을 찾을 수 없습니다. 문서 전체 모드로 사용하세요.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (
