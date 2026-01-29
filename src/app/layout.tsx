@@ -6,8 +6,30 @@ import { Providers } from "@/components/providers";
 const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Google Docs Image Resizer",
-  description: "Perfectly resize images in your Google Docs with one click.",
+  title: "Google Docs Image Resizer ✨",
+  description: "Perfectly resize images in your Google Docs with one click. Simple, fast, and secure.",
+  openGraph: {
+    title: "Google Docs Image Resizer",
+    description: "Perfectly resize images in your Google Docs with one click.",
+    url: "https://google-docs-resizer.vercel.app",
+    siteName: "Google Docs Image Resizer",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Google Docs Image Resizer Preview",
+      },
+    ],
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Google Docs Image Resizer",
+    description: "Perfectly resize images in your Google Docs with one click.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
