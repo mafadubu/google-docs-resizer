@@ -299,37 +299,20 @@ export const calculateImageResizeRequests = (
     const requests: any[] = [];
 
     actions.forEach(action => {
-        if (action.type === 'inline') {
-            requests.push({
-                updateInlineObjectProperties: {
-                    objectId: action.id, // We need to ensure action has ID
-                    inlineObjectProperties: {
-                        embeddedObject: {
-                            size: {
-                                width: { magnitude: targetWidthPt, unit: 'PT' },
-                                height: { magnitude: action.height, unit: 'PT' }
-                            }
-                        }
-                    },
-                    fields: 'embeddedObject.size'
-                }
-            });
-        } else if (action.type === 'positioned') {
-            requests.push({
-                updatePositionedObjectProperties: {
-                    objectId: action.id,
-                    positionedObjectProperties: {
-                        embeddedObject: {
-                            size: {
-                                width: { magnitude: targetWidthPt, unit: 'PT' },
-                                height: { magnitude: action.height, unit: 'PT' }
-                            }
-                        }
-                    },
-                    fields: 'embeddedObject.size'
-                }
-            });
-        }
+        // Both inline and positioned images contain an EmbeddedObject that holds the size.
+        // The API uses updateEmbeddedObjectProperties to resize either.
+        requests.push({
+            updateEmbeddedObjectProperties: {
+                objectId: action.id,
+                embeddedObjectProperties: {
+                    size: {
+                        width: { magnitude: targetWidthPt, unit: 'PT' },
+                        height: { magnitude: action.height, unit: 'PT' }
+                    }
+                },
+                fields: 'embeddedObject.size'
+            }
+        });
     });
 
     return requests;
