@@ -620,6 +620,14 @@ export function Dashboard() {
                                                                     const newScopes = itemsToSync.map(toScope);
                                                                     setSelectedScopes(prev => { const existingStarts = new Set(newScopes.map(s => s.start)); const cleanPrev = prev.filter(s => !existingStarts.has(s.start)); return [...cleanPrev, ...newScopes]; });
                                                                     setSelectedImageIds(prev => Array.from(new Set([...prev, ...allImageIds])));
+
+                                                                    // Scroll to the first image of this chapter in summary
+                                                                    const firstImageId = item.images[0]?.id;
+                                                                    if (firstImageId) {
+                                                                        scrollToElement(`summary-img-${firstImageId}`, 'summary-list', { type: 'heading', id: item.id, fallbackId: `summary-heading-${item.id}` });
+                                                                    } else {
+                                                                        scrollToElement(`summary-heading-${item.id}`, 'summary-list');
+                                                                    }
                                                                 }
                                                             }} className={`w-4 h-4 mr-4 flex-shrink-0 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>{isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}</div>
                                                             <div className="flex items-center flex-1" style={{ paddingLeft: `${(item.level - 1) * 20}px` }}>
