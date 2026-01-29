@@ -470,17 +470,26 @@ export function Dashboard() {
                 {/* Right Col: Outline */}
                 <div className="md:col-span-8">
                     {structure ? (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full min-h-[500px] flex flex-col">
-                            <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                                <h2 className="text-lg font-bold text-gray-900">{structure.title}</h2>
-                                <p className="text-sm text-gray-500">아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다.</p>
-                            </div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full min-h-[500px] flex flex-col relative">
+                            {/* Persistent Sticky Header */}
+                            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+                                <div className="p-6">
+                                    <h2 className="text-lg font-bold text-gray-900">{structure.title}</h2>
+                                    <p className="text-sm text-gray-500">
+                                        {activeChapterId
+                                            ? "이미지를 직접 선택하여 크기를 조절할 수 있습니다."
+                                            : "아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다."}
+                                    </p>
+                                </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                                {activeChapterId ? (
-                                    <div className="space-y-6">
-                                        {/* Sticky Gallery Header */}
-                                        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 -mx-4 px-4 py-3 space-y-3 shadow-sm">
+                                <AnimatePresence mode="wait">
+                                    {activeChapterId && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="px-6 pb-4 space-y-3 overflow-hidden"
+                                        >
                                             <div className="flex items-center justify-between">
                                                 <button
                                                     onClick={() => setActiveChapterId(null)}
@@ -526,7 +535,7 @@ export function Dashboard() {
                                             </div>
 
                                             {/* Sub Header: View Mode & Controls */}
-                                            <div className="flex items-center justify-between pt-1 border-t border-gray-50">
+                                            <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                                                 <div className="flex bg-gray-100 p-1 rounded-xl">
                                                     <button
                                                         onClick={() => setViewMode('grid')}
@@ -561,109 +570,98 @@ export function Dashboard() {
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
 
-                                        {/* View Content */}
-                                        <div>
-                                            {(() => {
-                                                const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                if (!currentChapter) return null;
-                                                if (currentChapter.images.length === 0) {
-                                                    return (
-                                                        <div className="p-12 text-center text-gray-400">
-                                                            이 챕터에는 조절 가능한 이미지가 없습니다.
-                                                        </div>
-                                                    );
-                                                }
+                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                                <AnimatePresence mode="wait">
+                                    {activeChapterId ? (
+                                        <motion.div
+                                            key="gallery"
+                                            layoutId={`chapter-${activeChapterId}`}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                            className="space-y-6"
+                                        >
+                                            {/* (Header removed from here as it's now global/sticky) */}
 
-                                                if (viewMode === 'grid') {
-                                                    return (
-                                                        <div
-                                                            className="grid gap-6"
-                                                            style={{
-                                                                gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
-                                                            }}
-                                                        >
-                                                            {currentChapter.images.map((img: any, i: number) => {
-                                                                const isImgSelected = selectedImageIds.includes(img.id);
-                                                                return (
-                                                                    <div
-                                                                        key={img.id}
-                                                                        onClick={() => {
-                                                                            if (isImgSelected) {
-                                                                                setSelectedImageIds(prev => prev.filter(id => id !== img.id));
-                                                                            } else {
-                                                                                setSelectedImageIds(prev => [...prev, img.id]);
-                                                                            }
-                                                                        }}
-                                                                        className={`
+                                            {/* View Content */}
+                                            <div>
+                                                {(() => {
+                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                    if (!currentChapter) return null;
+                                                    if (currentChapter.images.length === 0) {
+                                                        return (
+                                                            <div className="p-12 text-center text-gray-400">
+                                                                이 챕터에는 조절 가능한 이미지가 없습니다.
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    if (viewMode === 'grid') {
+                                                        return (
+                                                            <div
+                                                                className="grid gap-6"
+                                                                style={{
+                                                                    gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`
+                                                                }}
+                                                            >
+                                                                {currentChapter.images.map((img: any, i: number) => {
+                                                                    const isImgSelected = selectedImageIds.includes(img.id);
+                                                                    return (
+                                                                        <div
+                                                                            key={img.id}
+                                                                            onClick={() => {
+                                                                                if (isImgSelected) {
+                                                                                    setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                                } else {
+                                                                                    setSelectedImageIds(prev => [...prev, img.id]);
+                                                                                }
+                                                                            }}
+                                                                            className={`
                                                                             relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group
                                                                             ${isImgSelected ? 'border-indigo-500 shadow-lg shadow-indigo-100' : 'border-transparent hover:border-gray-200'}
                                                                         `}
-                                                                    >
-                                                                        <div className="relative aspect-video flex items-center justify-center p-3">
-                                                                            <img
-                                                                                src={img.uri}
-                                                                                alt={`Img ${i}`}
-                                                                                className="max-h-full max-w-full rounded shadow-sm transition-transform group-hover:scale-110 object-contain"
-                                                                            />
-                                                                            <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
-                                                                                {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                                        >
+                                                                            <div className="relative aspect-video flex items-center justify-center p-3">
+                                                                                <img
+                                                                                    src={img.uri}
+                                                                                    alt={`Img ${i}`}
+                                                                                    className="max-h-full max-w-full rounded shadow-sm transition-transform group-hover:scale-110 object-contain"
+                                                                                />
+                                                                                <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
+                                                                                    {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
+                                                                                <span className="truncate">#{i + 1} ({img.type})</span>
+                                                                                {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
                                                                             </div>
                                                                         </div>
-                                                                        <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
-                                                                            <span className="truncate">#{i + 1} ({img.type})</span>
-                                                                            {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    );
-                                                } else {
-                                                    // Carousel Mode
-                                                    const activeImg = currentChapter.images[carouselIndex] || currentChapter.images[0];
-                                                    const isActiveSelected = selectedImageIds.includes(activeImg.id);
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        );
+                                                    } else {
+                                                        // Carousel Mode
+                                                        const activeImg = currentChapter.images[carouselIndex] || currentChapter.images[0];
+                                                        const isActiveSelected = selectedImageIds.includes(activeImg.id);
 
-                                                    return (
-                                                        <div className="space-y-6">
-                                                            {/* Big Preview */}
-                                                            <div
-                                                                className={`
+                                                        return (
+                                                            <div className="space-y-6">
+                                                                {/* Big Preview */}
+                                                                <div
+                                                                    className={`
                                                                     relative rounded-3xl border-2 transition-all overflow-hidden bg-gray-100 group flex flex-col h-[400px]
                                                                     ${isActiveSelected ? 'border-indigo-500 shadow-xl shadow-indigo-100' : 'border-gray-200 shadow-sm'}
                                                                 `}
-                                                            >
-                                                                <div
-                                                                    className="flex-1 relative flex items-center justify-center p-8 bg-gray-50/50 cursor-pointer"
-                                                                    onClick={() => {
-                                                                        if (isActiveSelected) {
-                                                                            setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
-                                                                        } else {
-                                                                            setSelectedImageIds(prev => [...prev, activeImg.id]);
-                                                                        }
-                                                                    }}
                                                                 >
-                                                                    <img
-                                                                        src={activeImg.uri}
-                                                                        className="max-h-full max-w-full rounded-lg shadow-2xl transition-transform group-hover:scale-105 object-contain"
-                                                                    />
-
-                                                                    <div className={`absolute top-6 left-6 flex items-center space-x-3 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl shadow-lg border-2 ${isActiveSelected ? 'border-indigo-500' : 'border-transparent'}`}>
-                                                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isActiveSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
-                                                                            {isActiveSelected && <div className="w-2 h-2 bg-white rounded-full" />}
-                                                                        </div>
-                                                                        <span className="text-sm font-black text-gray-900">IMAGE #{carouselIndex + 1}</span>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
-                                                                    <div className="flex items-center space-x-2">
-                                                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{activeImg.type}</span>
-                                                                        <span className="text-xs text-gray-300">|</span>
-                                                                        <span className="text-xs text-gray-400">문서 내 위치: {activeImg.startIndex}</span>
-                                                                    </div>
-                                                                    <button
+                                                                    <div
+                                                                        className="flex-1 relative flex items-center justify-center p-8 bg-gray-50/50 cursor-pointer"
                                                                         onClick={() => {
                                                                             if (isActiveSelected) {
                                                                                 setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
@@ -671,156 +669,194 @@ export function Dashboard() {
                                                                                 setSelectedImageIds(prev => [...prev, activeImg.id]);
                                                                             }
                                                                         }}
-                                                                        className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                                                     >
-                                                                        {isActiveSelected ? "선택 해제" : "현재 이미지 선택"}
-                                                                    </button>
-                                                                </div>
-                                                            </div>
+                                                                        <img
+                                                                            src={activeImg.uri}
+                                                                            className="max-h-full max-w-full rounded-lg shadow-2xl transition-transform group-hover:scale-105 object-contain"
+                                                                        />
 
-                                                            {/* Thumbnail Track */}
-                                                            <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
-                                                                {currentChapter.images.map((img: any, i: number) => {
-                                                                    const isSelected = selectedImageIds.includes(img.id);
-                                                                    const isActive = carouselIndex === i;
-                                                                    return (
+                                                                        <div className={`absolute top-6 left-6 flex items-center space-x-3 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl shadow-lg border-2 ${isActiveSelected ? 'border-indigo-500' : 'border-transparent'}`}>
+                                                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isActiveSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
+                                                                                {isActiveSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                                                                            </div>
+                                                                            <span className="text-sm font-black text-gray-900">IMAGE #{carouselIndex + 1}</span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
+                                                                        <div className="flex items-center space-x-2">
+                                                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">{activeImg.type}</span>
+                                                                            <span className="text-xs text-gray-300">|</span>
+                                                                            <span className="text-xs text-gray-400">문서 내 위치: {activeImg.startIndex}</span>
+                                                                        </div>
                                                                         <button
-                                                                            key={img.id}
-                                                                            onClick={() => setCarouselIndex(i)}
-                                                                            className={`
+                                                                            onClick={() => {
+                                                                                if (isActiveSelected) {
+                                                                                    setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
+                                                                                } else {
+                                                                                    setSelectedImageIds(prev => [...prev, activeImg.id]);
+                                                                                }
+                                                                            }}
+                                                                            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                                                        >
+                                                                            {isActiveSelected ? "선택 해제" : "현재 이미지 선택"}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Thumbnail Track */}
+                                                                <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
+                                                                    {currentChapter.images.map((img: any, i: number) => {
+                                                                        const isSelected = selectedImageIds.includes(img.id);
+                                                                        const isActive = carouselIndex === i;
+                                                                        return (
+                                                                            <button
+                                                                                key={img.id}
+                                                                                onClick={() => setCarouselIndex(i)}
+                                                                                className={`
                                                                                 relative flex-shrink-0 w-24 h-24 rounded-2xl border-2 transition-all p-2 overflow-hidden
                                                                                 ${isActive ? 'border-indigo-500 ring-4 ring-indigo-50 bg-white' : 'border-gray-100 bg-gray-50 hover:border-gray-300'}
                                                                             `}
-                                                                        >
-                                                                            <img src={img.uri} className="w-full h-full object-contain rounded" />
-                                                                            {isSelected && (
-                                                                                <div className="absolute top-1 right-1">
-                                                                                    <CheckCircle className="w-4 h-4 text-indigo-600 bg-white rounded-full" />
+                                                                            >
+                                                                                <img src={img.uri} className="w-full h-full object-contain rounded" />
+                                                                                {isSelected && (
+                                                                                    <div className="absolute top-1 right-1">
+                                                                                        <CheckCircle className="w-4 h-4 text-indigo-600 bg-white rounded-full" />
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="absolute bottom-1 left-1 bg-black/60 text-[8px] text-white px-1.5 rounded-md font-bold">
+                                                                                    #{i + 1}
                                                                                 </div>
-                                                                            )}
-                                                                            <div className="absolute bottom-1 left-1 bg-black/60 text-[8px] text-white px-1.5 rounded-md font-bold">
-                                                                                #{i + 1}
-                                                                            </div>
-                                                                        </button>
-                                                                    );
-                                                                })}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    );
-                                                }
-                                            })()}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div
-                                            onClick={() => {
-                                                if (selectedScopes.length === structure.items.length) {
-                                                    setSelectedScopes([]);
-                                                } else {
-                                                    const allScopes = structure.items.map((it: any) => ({
-                                                        start: it.startIndex,
-                                                        end: it.scopeEndIndex,
-                                                        label: it.title
-                                                    }));
-                                                    setSelectedScopes(allScopes);
-                                                }
-                                            }}
-                                            className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScopes.length === structure.items.length ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
-                                        >
-                                            <div className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>
-                                                {selectedScopes.length === structure.items.length && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                        );
+                                                    }
+                                                })()}
                                             </div>
-                                            <span className="font-semibold">문서 전체 (Whole Document)</span>
-                                        </div>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="outline"
+                                            layoutId="outline-view"
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                            className="space-y-1"
+                                        >
+                                            <div
+                                                onClick={() => {
+                                                    if (selectedScopes.length === structure.items.length) {
+                                                        setSelectedScopes([]);
+                                                    } else {
+                                                        const allScopes = structure.items.map((it: any) => ({
+                                                            start: it.startIndex,
+                                                            end: it.scopeEndIndex,
+                                                            label: it.title
+                                                        }));
+                                                        setSelectedScopes(allScopes);
+                                                    }
+                                                }}
+                                                className={`p-3 rounded-xl cursor-pointer transition-colors mb-2 flex items-center ${selectedScopes.length === structure.items.length ? 'bg-indigo-50 border-indigo-200 border text-indigo-900' : 'hover:bg-gray-50 border border-transparent'}`}
+                                            >
+                                                <div className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>
+                                                    {selectedScopes.length === structure.items.length && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                </div>
+                                                <span className="font-semibold">문서 전체 (Whole Document)</span>
+                                            </div>
 
-                                        {structure.items.map((item: any, idx: number) => {
-                                            const isSelected = selectedScopes.some(s => s.start === item.startIndex);
+                                            {structure.items.map((item: any, idx: number) => {
+                                                const isSelected = selectedScopes.some(s => s.start === item.startIndex);
 
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    className={`
+                                                return (
+                                                    <motion.div
+                                                        key={item.id || idx}
+                                                        layoutId={`chapter-${item.id}`}
+                                                        className={`
                                                         group p-3 rounded-xl cursor-pointer transition-all mb-1 select-none flex items-center justify-between
                                                         ${isSelected
-                                                            ? 'bg-indigo-50 border-indigo-200 border text-indigo-900'
-                                                            : 'hover:bg-gray-50 border border-transparent text-gray-700'
-                                                        }
+                                                                ? 'bg-indigo-50 border-indigo-200 border text-indigo-900'
+                                                                : 'hover:bg-gray-50 border border-transparent text-gray-700'
+                                                            }
                                                     `}
-                                                    style={{ marginLeft: `${(item.level - 1) * 20}px` }}
-                                                >
-                                                    <div
-                                                        className="flex items-center flex-1"
-                                                        onClick={() => {
-                                                            // Clicking the text opens the gallery
-                                                            setActiveChapterId(item.id);
-                                                            // Scroll to top of right pane
-                                                            const pane = document.querySelector('.custom-scrollbar');
-                                                            if (pane) pane.scrollTop = 0;
-                                                        }}
+                                                        style={{ marginLeft: `${(item.level - 1) * 20}px` }}
                                                     >
                                                         <div
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const descendants: any[] = [];
-                                                                const currentLevel = item.level;
-                                                                for (let i = idx + 1; i < structure.items.length; i++) {
-                                                                    const nextItem = structure.items[i];
-                                                                    if (nextItem.level > currentLevel) {
-                                                                        descendants.push(nextItem);
-                                                                    } else {
-                                                                        break;
-                                                                    }
-                                                                }
-                                                                const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
-                                                                const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
-
-                                                                if (isCurrentlySelected) {
-                                                                    const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
-                                                                    setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
-                                                                } else {
-                                                                    const newScopes = [toScope(item), ...descendants.map(toScope)];
-                                                                    setSelectedScopes(prev => {
-                                                                        const existingStarts = new Set(newScopes.map(s => s.start));
-                                                                        const cleanPrev = prev.filter(s => !existingStarts.has(s.start));
-                                                                        return [...cleanPrev, ...newScopes];
-                                                                    });
-                                                                }
+                                                            className="flex items-center flex-1"
+                                                            onClick={() => {
+                                                                // Clicking the text opens the gallery
+                                                                setActiveChapterId(item.id);
+                                                                // Scroll to top of right pane
+                                                                const pane = document.querySelector('.custom-scrollbar');
+                                                                if (pane) pane.scrollTop = 0;
                                                             }}
-                                                            className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}
                                                         >
-                                                            {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                            <div
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const descendants: any[] = [];
+                                                                    const currentLevel = item.level;
+                                                                    for (let i = idx + 1; i < structure.items.length; i++) {
+                                                                        const nextItem = structure.items[i];
+                                                                        if (nextItem.level > currentLevel) {
+                                                                            descendants.push(nextItem);
+                                                                        } else {
+                                                                            break;
+                                                                        }
+                                                                    }
+                                                                    const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
+                                                                    const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
+
+                                                                    if (isCurrentlySelected) {
+                                                                        const rangesToRemove = [item.startIndex, ...descendants.map(d => d.startIndex)];
+                                                                        setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
+                                                                    } else {
+                                                                        const newScopes = [toScope(item), ...descendants.map(toScope)];
+                                                                        setSelectedScopes(prev => {
+                                                                            const existingStarts = new Set(newScopes.map(s => s.start));
+                                                                            const cleanPrev = prev.filter(s => !existingStarts.has(s.start));
+                                                                            return [...cleanPrev, ...newScopes];
+                                                                        });
+                                                                    }
+                                                                }}
+                                                                className={`w-4 h-4 mr-3 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}
+                                                            >
+                                                                {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                                            </div>
+
+                                                            <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
+                                                                H{item.level}
+                                                            </span>
+                                                            <span className={`${item.level === 1 ? 'font-bold' : 'font-medium'} flex-1`}>
+                                                                {item.title}
+                                                            </span>
+
+                                                            {item.imageCount > 0 && (
+                                                                <div className="ml-2 flex items-center text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
+                                                                    <ImageIcon className="w-3 h-3 mr-1" />
+                                                                    {item.imageCount}
+                                                                </div>
+                                                            )}
                                                         </div>
 
-                                                        <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
-                                                            H{item.level}
-                                                        </span>
-                                                        <span className={`${item.level === 1 ? 'font-bold' : 'font-medium'} flex-1`}>
-                                                            {item.title}
-                                                        </span>
+                                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                                            <MousePointerClick className="w-4 h-4 text-indigo-400" />
+                                                        </div>
+                                                    </motion.div>
+                                                );
+                                            })}
 
-                                                        {item.imageCount > 0 && (
-                                                            <div className="ml-2 flex items-center text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold">
-                                                                <ImageIcon className="w-3 h-3 mr-1" />
-                                                                {item.imageCount}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                                                        <MousePointerClick className="w-4 h-4 text-indigo-400" />
-                                                    </div>
+                                            {structure.items.length === 0 && (
+                                                <div className="p-8 text-center text-gray-400">
+                                                    제목(Heading)을 찾을 수 없습니다. 문서 전체 모드로 사용하세요.
                                                 </div>
-                                            );
-                                        })}
-
-                                        {structure.items.length === 0 && (
-                                            <div className="p-8 text-center text-gray-400">
-                                                제목(Heading)을 찾을 수 없습니다. 문서 전체 모드로 사용하세요.
-                                            </div>
-                                        )}
-                                    </>
-                                )}
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         </div>
                     ) : (
