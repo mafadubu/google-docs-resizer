@@ -19,6 +19,7 @@ export function Dashboard() {
     const [gridCols, setGridCols] = useState<number>(3);
     const [carouselIndex, setCarouselIndex] = useState<number>(0);
     const [selectedScopes, setSelectedScopes] = useState<Array<{ start: number; end: number; label: string }>>([]);
+    const [highlightedChapterId, setHighlightedChapterId] = useState<string | null>(null);
     // Wait, the user wants "Whole Document" click to fill all checkboxes.
     // If I fill all checkboxes, the array has all items.
     // If I uncheck all, the array is empty.
@@ -117,6 +118,11 @@ export function Dashboard() {
     const handleBackToOutline = () => {
         const currentId = activeChapterId;
         setActiveChapterId(null);
+
+        if (currentId) {
+            setHighlightedChapterId(currentId);
+            setTimeout(() => setHighlightedChapterId(null), 2500);
+        }
 
         // Use timeout to ensure DOM is updated before scrolling
         setTimeout(() => {
@@ -508,10 +514,10 @@ export function Dashboard() {
                 {/* Right Col: Outline */}
                 <div className="md:col-span-8">
                     {structure ? (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-full min-h-[500px] flex flex-col relative">
-                            {/* Persistent Sticky Header - Fix: Sticky top mapping to viewport */}
-                            <div className="sticky top-24 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl">
-                                <div className="p-6">
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-full min-h-[500px] flex flex-col relative overflow-hidden">
+                            {/* Persistent Sticky Header - Fix: top-0 with PT-24 to align with global nav */}
+                            <div className="sticky top-0 z-40 bg-white shadow-sm rounded-t-2xl pt-24 -mt-24">
+                                <div className="p-6 border-b border-gray-100 bg-white/95 backdrop-blur-md">
                                     <h2 className="text-lg font-bold text-gray-900">{structure.title}</h2>
                                     <p className="text-sm text-gray-500">
                                         {activeChapterId
@@ -814,12 +820,16 @@ export function Dashboard() {
                                                         key={item.id || idx}
                                                         id={`chapter-${item.id}`}
                                                         layoutId={`chapter-${item.id}`}
+                                                        initial={false}
+                                                        animate={{
+                                                            backgroundColor: highlightedChapterId === item.id ? "rgba(163, 230, 53, 0.4)" : isSelected ? "rgba(238, 242, 255, 1)" : "rgba(255, 255, 255, 0)",
+                                                            scale: highlightedChapterId === item.id ? 1.02 : 1,
+                                                            borderColor: highlightedChapterId === item.id ? "#a3e635" : isSelected ? "#c7d2fe" : "rgba(0,0,0,0)"
+                                                        }}
+                                                        transition={{ duration: highlightedChapterId === item.id ? 0.3 : 1 }}
                                                         className={`
-                                                        group p-3 rounded-xl cursor-pointer transition-all mb-1 select-none flex items-center justify-between
-                                                        ${isSelected
-                                                                ? 'bg-indigo-50 border-indigo-200 border text-indigo-900'
-                                                                : 'hover:bg-gray-50 border border-transparent text-gray-700'
-                                                            }
+                                                        group p-3 rounded-xl cursor-pointer mb-1 select-none flex items-center justify-between border
+                                                        ${isSelected ? 'text-indigo-900' : 'hover:bg-gray-50 text-gray-700'}
                                                     `}
                                                         style={{ marginLeft: `${(item.level - 1) * 20}px` }}
                                                     >
@@ -829,7 +839,7 @@ export function Dashboard() {
                                                                 // Clicking the text opens the gallery
                                                                 setActiveChapterId(item.id);
                                                                 // Scroll to top of page/right pane
-                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                window.scrollTo({ top: 0, behavior: 'auto' });
                                                             }}
                                                         >
                                                             <div
