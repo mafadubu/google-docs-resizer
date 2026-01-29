@@ -354,7 +354,17 @@ export function Dashboard() {
                                                                     ))}
                                                                 </div>
                                                             )}
-                                                            <div className="flex items-center space-x-2"><div className="w-1.5 h-1.5 bg-indigo-400 rounded-full" /><h4 className={`font-black text-indigo-900 leading-tight text-[11px]`}>{item.title}</h4></div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full" />
+                                                                <div className="flex flex-col">
+                                                                    {hierarchy && hierarchy.length > 1 && (
+                                                                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tight mb-0.5">
+                                                                            {hierarchy[hierarchy.length - 2]}
+                                                                        </span>
+                                                                    )}
+                                                                    <h4 className={`font-black text-indigo-900 leading-tight text-[11px]`}>{item.title}</h4>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                         <div className={`grid gap-3 ${isSummaryExpanded ? 'grid-cols-4' : 'grid-cols-4'}`}>
                                                             {chapterImages.map((img: any) => (
