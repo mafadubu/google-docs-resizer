@@ -507,6 +507,61 @@ export function Dashboard() {
                             </div>
                         </div>
                     )}
+
+                    {/* Selected Items Summary Box */}
+                    {structure && (selectedImageIds.length > 0 || selectedScopes.length > 0) && (
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <h2 className="text-xl font-bold mb-4 flex items-center">
+                                <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
+                                선택된 항목 요약
+                            </h2>
+
+                            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                {selectedImageIds.length > 0 ? (
+                                    <div className="space-y-3">
+                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">직접 선택한 이미지 ({selectedImageIds.length})</p>
+                                        <div className="grid gap-2">
+                                            {structure.items.map((chapter: any) => {
+                                                const chapterSelectedImages = chapter.images.filter((img: any) => selectedImageIds.includes(img.id));
+                                                if (chapterSelectedImages.length === 0) return null;
+
+                                                return (
+                                                    <div key={chapter.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                        <div className="flex items-center text-xs font-bold text-gray-700 mb-2 truncate">
+                                                            <FileText className="w-3 h-3 mr-1.5 text-indigo-400" />
+                                                            {chapter.title}
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {chapterSelectedImages.map((img: any) => (
+                                                                <div
+                                                                    key={img.id}
+                                                                    className="px-2 py-1 bg-white border border-gray-200 rounded-md text-[10px] text-indigo-600 font-mono font-bold"
+                                                                >
+                                                                    IMG #{chapter.images.indexOf(img) + 1}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">선택된 챕터 ({selectedScopes.length})</p>
+                                        <div className="grid gap-2">
+                                            {selectedScopes.map((scope: any, idx: number) => (
+                                                <div key={idx} className="flex items-center p-3 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                                                    <CheckCircle className="w-3.5 h-3.5 mr-2 text-indigo-500" />
+                                                    <span className="text-xs font-bold text-indigo-900 truncate">{scope.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Col: Outline */}

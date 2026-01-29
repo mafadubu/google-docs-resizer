@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     }
 
     try {
-        const { docId, targetWidthCm, scopes } = await req.json();
+        const { docId, targetWidthCm, scopes, selectedImageIds } = await req.json();
 
         if (!docId || !targetWidthCm) {
             return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
         const requests = calculateImageResizeRequests(doc, {
             targetWidthCm,
             scopes: Array.isArray(scopes) ? scopes : undefined,
+            selectedImageIds: Array.isArray(selectedImageIds) ? selectedImageIds : undefined
         });
 
         if (requests.length === 0) {
