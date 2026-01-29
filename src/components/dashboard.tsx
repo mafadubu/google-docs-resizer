@@ -307,42 +307,44 @@ export function Dashboard() {
                 {/* Left Col: Setup - Sticky Sidebar */}
                 <div className="md:col-span-4 space-y-6 md:sticky md:top-24 h-fit">
 
-                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-900 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2 opacity-10">
-                            <FileText className="w-16 h-16" />
-                        </div>
-                        <h3 className="font-bold mb-2 flex items-center">
-                            <CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
-                            사용 전 확인해 주세요!
-                        </h3>
-                        <ul className="space-y-2 pl-1 z-10 relative">
-                            <li className="flex items-start">
-                                <span className="mr-2 text-blue-400">•</span>
-                                <span>문서에 대한 <strong className="font-semibold">편집 권한</strong>이 꼭 필요합니다.</span>
-                            </li>
-                            <li className="flex items-start">
-                                <span className="mr-2 text-blue-400">•</span>
-                                <span><strong className="font-semibold">직접 업로드</strong>하거나 붙여넣은 이미지만 지원됩니다. (그리기/도형 제외)</span>
-                            </li>
-                            <li className="flex items-start">
-                                <span className="mr-2 text-blue-400">•</span>
-                                <span>챕터별 기능을 쓰려면 <strong className="font-semibold">제목(Heading 1~6)</strong> 스타일을 사용해 주세요.</span>
-                            </li>
-                        </ul>
-                    </div>
+                    {/* Help Cards - Only show if NO structure is loaded */}
+                    <AnimatePresence>
+                        {!structure && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden space-y-4"
+                            >
+                                <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100">
+                                    <h3 className="font-bold text-amber-900 mb-3 flex items-center">
+                                        <MousePointerClick className="w-5 h-5 mr-2 text-amber-600" />
+                                        사용 전 확인해 주세요!
+                                    </h3>
+                                    <ul className="space-y-2 text-sm text-amber-800 font-medium">
+                                        <li className="flex items-start">
+                                            <span className="mr-2">1.</span>
+                                            <span>수정할 구글 문서의 <strong>공유 설정</strong>이 '링크가 있는 모든 사용자' 혹은 본인 계정으로 '편집 가능' 인지 확인해주세요.</span>
+                                        </li>
+                                        <li className="flex items-start text-red-600">
+                                            <span className="mr-2">2.</span>
+                                            <span className="font-bold underline italic">반드시 문서를 백업(사본 생성)한 후 작업을 진행해 주세요.</span>
+                                        </li>
+                                    </ul>
+                                </div>
 
-                    {/* Privacy Alert */}
-                    <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-sm text-green-900 shadow-sm flex items-start space-x-3">
-                        <div className="p-1 bg-green-100 rounded-full">
-                            <ShieldCheck className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-green-800 mb-1">안심하세요!</h4>
-                            <p className="text-green-700 leading-relaxed text-xs">
-                                사용자가 업로드한 문서는 <span className="font-bold border-b border-green-500/50">저장되거나 공유되지 않으며</span>, 모든 처리는 구글 서버 내에서 안전하게 이루어집니다.
-                            </p>
-                        </div>
-                    </div>
+                                <div className="bg-green-50 rounded-2xl p-5 border border-green-100 flex items-start">
+                                    <ShieldCheck className="w-6 h-6 mr-3 text-green-600 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-bold text-green-800 mb-1">안심하세요!</h4>
+                                        <p className="text-sm text-green-700 leading-relaxed font-medium">
+                                            입력하신 URL은 분석 용도로만 사용되며, 외부로 유출되거나 별도로 저장되지 않습니다.
+                                        </p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden transition-[height]">
                         <div className="flex items-center justify-between mb-2">
@@ -510,38 +512,38 @@ export function Dashboard() {
 
                     {/* Selected Items Summary Box */}
                     {structure && (selectedImageIds.length > 0 || selectedScopes.length > 0) && (
-                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <h2 className="text-xl font-bold mb-4 flex items-center">
+                        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col max-h-[400px]">
+                            <h2 className="text-xl font-bold mb-4 flex items-center flex-shrink-0">
                                 <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
                                 선택된 항목 요약
                             </h2>
 
-                            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain">
                                 {selectedImageIds.length > 0 ? (
                                     <div className="space-y-3">
                                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">직접 선택한 이미지 ({selectedImageIds.length})</p>
-                                        <div className="grid gap-2">
-                                            {structure.items.map((chapter: any) => {
-                                                const chapterSelectedImages = chapter.images.filter((img: any) => selectedImageIds.includes(img.id));
-                                                if (chapterSelectedImages.length === 0) return null;
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {selectedImageIds.map((id) => {
+                                                // Find the chapter and index for this image to show a nicer label
+                                                let label = "IMG";
+                                                for (const chapter of structure.items) {
+                                                    const idx = chapter.images.findIndex((img: any) => img.id === id);
+                                                    if (idx !== -1) {
+                                                        label = `IMG #${idx + 1}`;
+                                                        break;
+                                                    }
+                                                }
 
                                                 return (
-                                                    <div key={chapter.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                                        <div className="flex items-center text-xs font-bold text-gray-700 mb-2 truncate">
-                                                            <FileText className="w-3 h-3 mr-1.5 text-indigo-400" />
-                                                            {chapter.title}
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {chapterSelectedImages.map((img: any) => (
-                                                                <div
-                                                                    key={img.id}
-                                                                    className="px-2 py-1 bg-white border border-gray-200 rounded-md text-[10px] text-indigo-600 font-mono font-bold"
-                                                                >
-                                                                    IMG #{chapter.images.indexOf(img) + 1}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
+                                                    <button
+                                                        key={id}
+                                                        onClick={() => setSelectedImageIds(prev => prev.filter(pid => pid !== id))}
+                                                        className="group relative px-2 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-[10px] text-indigo-600 font-mono font-bold hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all flex items-center justify-center text-center"
+                                                        title="클릭하여 선택 해제"
+                                                    >
+                                                        <span className="group-hover:hidden">{label}</span>
+                                                        <span className="hidden group-hover:inline">삭제</span>
+                                                    </button>
                                                 );
                                             })}
                                         </div>
