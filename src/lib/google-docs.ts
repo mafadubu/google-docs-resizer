@@ -299,20 +299,18 @@ export const calculateImageResizeRequests = (
     const originalIds: string[] = [];
 
     actions.forEach(action => {
-        // BEST PRACTICE: Use updateEmbeddedObjectProperties for both inline and positioned objects.
-        // This is the correct field name in the Google Docs batchUpdate API.
+        // CORRECTED: The field 'size' is directly inside 'embeddedObjectProperties'.
+        // This follows the official Google Docs API v1 specification.
         requests.push({
             updateEmbeddedObjectProperties: {
                 objectId: action.id,
                 embeddedObjectProperties: {
-                    embeddedObject: {
-                        size: {
-                            width: { magnitude: action.width, unit: 'PT' },
-                            height: { magnitude: action.height, unit: 'PT' }
-                        }
+                    size: {
+                        width: { magnitude: action.width, unit: 'PT' },
+                        height: { magnitude: action.height, unit: 'PT' }
                     }
                 },
-                fields: 'embeddedObject.size'
+                fields: 'size'
             }
         });
     });
