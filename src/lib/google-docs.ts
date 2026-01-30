@@ -300,50 +300,49 @@ export const calculateImageResizeRequests = (
 
     actions.forEach(action => {
         if (action.type === 'inline') {
-            // RETRY: Use updateInlineObjectProperties with the CORRECT structure.
-            // Google Docs API v1 structure:
-            // {
-            //   updateInlineObjectProperties: {
-            //     objectId: string,
-            //     inlineObjectProperties: {
-            //       embeddedObject: {
-            //         size: { width: ..., height: ... }
-            //       }
-            //     },
-            //     fields: "embeddedObject.size"
-            //   }
-            // }
+            // STRATEGY: Insert FIRST, then Delete.
+            // 1. Insert new image at current index.
+            // 2. The old image is pushed to index + 1.
+            // 3. Delete the old image at [index + 1, index + 2].
             requests.push({
-                updateInlineObjectProperties: {
-                    objectId: action.id,
-                    inlineObjectProperties: {
-                        embeddedObject: {
-                            size: {
-                                width: { magnitude: action.width, unit: 'PT' },
-                                height: { magnitude: action.height, unit: 'PT' }
-                            }
-                        }
-                    },
-                    fields: 'embeddedObject.size'
+                insertInlineImage: {
+                    uri: action.uri,
+                    location: { index: action.index },
+                    objectSize: {
+                        width: { magnitude: action.width, unit: 'PT' },
+                        height: { magnitude: action.height, unit: 'PT' }
+                    }
                 }
             });
+            requests.push({
+                deleteContentRange: {
+                    range: {
+                        startIndex: action.index + 1,
+                        endIndex: action.index + 2
+                    }
+                }
+            });
+            originalIds.push(action.id);
         } else if (action.type === 'positioned') {
+            // Positioned objects are separate from text flow, so we can delete by ID safely.
             requests.push({
-                updatePositionedObjectProperties: {
-                    objectId: action.id,
-                    positionedObjectProperties: {
-                        embeddedObject: {
-                            size: {
-                                width: { magnitude: action.width, unit: 'PT' },
-                                height: { magnitude: action.height, unit: 'PT' }
-                            }
-                        }
-                    },
-                    fields: 'embeddedObject.size'
+                deletePositionedObject: {
+                    objectId: action.id
                 }
             });
+            requests.push({
+                insertInlineImage: {
+                    uri: action.uri,
+                    location: { index: action.anchorIndex },
+                    objectSize: {
+                        width: { magnitude: action.width, unit: 'PT' },
+                        height: { magnitude: action.height, unit: 'PT' }
+                    }
+                }
+            });
+            originalIds.push(action.id);
         }
     });
 
-    return { requests, originalIds: [] };
+    return { requests, originalIds };
 };
