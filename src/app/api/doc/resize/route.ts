@@ -37,47 +37,63 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "No images found to resize", count: 0 });
         }
 
-        // 3. Batch Update in Chunks to avoid "Internal error" or timeouts
-        const CHUNK_SIZE = 100; // 50 images (each has 2 requests)
+        // 3. Batch Update in smaller Chunks with retries to avoid "Internal error"
+        const CHUNK_SIZE = 20; // 10 images at a time (much safer)
         const newIdMapping: Record<string, string> = {};
         let totalInsertCount = 0;
 
         for (let i = 0; i < requests.length; i += CHUNK_SIZE) {
             const chunk = requests.slice(i, i + CHUNK_SIZE);
-            try {
-                const response = await docs.documents.batchUpdate({
-                    documentId: docId,
-                    requestBody: {
-                        requests: chunk,
-                    },
-                });
+            let retryCount = 0;
+            const MAX_RETRIES = 2;
 
-                // Extract New IDs for this chunk
-                let chunkInsertCount = 0;
-                const originalIdsForThisChunk = originalIds.slice(totalInsertCount, totalInsertCount + (chunk.filter(r => r.insertInlineImage).length));
+            while (retryCount <= MAX_RETRIES) {
+                try {
+                    const response = await docs.documents.batchUpdate({
+                        documentId: docId,
+                        requestBody: {
+                            requests: chunk,
+                        },
+                    });
 
-                response.data.replies?.forEach((reply) => {
-                    if (reply.insertInlineImage) {
-                        const oldId = originalIdsForThisChunk[chunkInsertCount];
-                        const newId = reply.insertInlineImage.objectId;
-                        if (oldId && newId) {
-                            newIdMapping[oldId] = newId;
+                    // Extract New IDs for this chunk
+                    let chunkInsertCount = 0;
+                    const originalIdsForThisChunk = originalIds.slice(totalInsertCount, totalInsertCount + (chunk.filter(r => r.insertInlineImage).length));
+
+                    response.data.replies?.forEach((reply) => {
+                        if (reply.insertInlineImage) {
+                            const oldId = originalIdsForThisChunk[chunkInsertCount];
+                            const newId = reply.insertInlineImage.objectId;
+                            if (oldId && newId) {
+                                newIdMapping[oldId] = newId;
+                            }
+                            chunkInsertCount++;
                         }
-                        chunkInsertCount++;
-                    }
-                });
-                totalInsertCount += chunkInsertCount;
+                    });
+                    totalInsertCount += chunkInsertCount;
 
-                // Small delay between chunks for safety
-                if (i + CHUNK_SIZE < requests.length) {
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    // Success! Break retry loop
+                    break;
+                } catch (chunkError: any) {
+                    const isInternalError = chunkError.message?.includes("Internal error") || chunkError.code === 500;
+                    if (isInternalError && retryCount < MAX_RETRIES) {
+                        retryCount++;
+                        console.warn(`Internal error on chunk ${i}, retrying (${retryCount}/${MAX_RETRIES})...`);
+                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+                        continue;
+                    }
+
+                    console.error(`Final failure at chunk index ${i}:`, chunkError);
+                    if (chunkError.response?.data) {
+                        console.error("Error data:", JSON.stringify(chunkError.response.data, null, 2));
+                    }
+                    throw chunkError;
                 }
-            } catch (chunkError: any) {
-                console.error(`Chunk error at index ${i}:`, chunkError);
-                if (chunkError.response?.data) {
-                    console.error("Chunk error details:", JSON.stringify(chunkError.response.data, null, 2));
-                }
-                throw chunkError; // Re-throw to be caught by the outer catch
+            }
+
+            // More generous delay between chunks
+            if (i + CHUNK_SIZE < requests.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
         }
 
