@@ -21,7 +21,9 @@ export function Dashboard() {
     const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
     const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
     const [viewMode, setViewMode] = useState<'grid' | 'carousel'>('grid');
-    const [gridCols, setGridCols] = useState<number>(3);
+    const [gridCols, setGridCols] = React.useState(3);
+    const [isSyncing, setIsSyncing] = React.useState(false);
+    const [lastSyncTime, setLastSyncTime] = React.useState<Date | null>(null);
     const [carouselIndex, setCarouselIndex] = useState<number>(0);
     const [selectedScopes, setSelectedScopes] = useState<Array<{ start: number; end: number; label: string }>>([]);
     const [highlightedChapterId, setHighlightedChapterId] = useState<string | null>(null);
@@ -184,6 +186,50 @@ export function Dashboard() {
         setWarningMsg("");
     };
 
+    const syncDoc = async (silent = false) => {
+        if (!structure?.id || loading || isSyncing) return;
+        if (!silent) setIsSyncing(true);
+        try {
+            const res = await fetch("/api/doc/structure", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ docId: structure.id }),
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            // Keep existing selections that are still valid in the new structure
+            const allNewImageIds = new Set(data.items.flatMap((item: any) => item.images.map((img: any) => img.id)));
+            const allNewScopeStarts = new Set(data.items.map((item: any) => item.startIndex));
+
+            setSelectedImageIds(prev => prev.filter(id => allNewImageIds.has(id)));
+            setSelectedScopes(prev => prev.filter(s => allNewScopeStarts.has(s.start)));
+
+            setStructure({ ...data, id: structure.id });
+            setLastSyncTime(new Date());
+            if (!silent) {
+                setSuccessMsg("문서 상태가 성공적으로 동기화되었습니다!");
+                setShowSuccess(true);
+            }
+        } catch (e: any) {
+            console.error("Sync error:", e);
+            if (!silent) alert("동기화 중 오류가 발생했습니다: " + e.message);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleFocus = () => {
+            if (isLoaded && structure?.id) {
+                // Refresh silently when tab gets focus (e.g., coming back from Google Docs)
+                syncDoc(true);
+            }
+        };
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [isLoaded, structure?.id]);
+
     const fetchStructure = async () => {
         if (!docUrl.includes("docs.google.com/document/d/")) {
             setWarningMsg("올바른 Google Docs URL을 입력해주세요.");
@@ -208,6 +254,8 @@ export function Dashboard() {
             setStructure({ ...data, id: docId });
             setIsLoaded(true);
             setSelectedScopes([]);
+            setSelectedImageIds([]);
+            setLastSyncTime(new Date());
             setSuccessMsg("문서 목차를 성공적으로 불러왔습니다!");
             setShowSuccess(true);
         } catch (e: any) {
@@ -215,7 +263,6 @@ export function Dashboard() {
         } finally {
             setLoading(false);
             setActiveChapterId(null);
-            setSelectedImageIds([]);
         }
     };
 
@@ -328,7 +375,20 @@ export function Dashboard() {
                                             <h2 className="text-base font-bold flex items-center"><FileText className="w-4 h-4 mr-2 text-indigo-500" />1. 문서 선택</h2>
                                             <div className="flex items-center space-x-2">
                                                 <AnimatePresence>
-                                                    {isLoaded && (<motion.div key="reenter-btn" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}><button onClick={handleReset} className="text-[10px] flex items-center bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-full transition-colors font-bold"><RefreshCw className="w-3 h-3 mr-1" />다른 문서</button></motion.div>)}
+                                                    {isLoaded && (
+                                                        <motion.div key="sync-group" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center space-x-1.5 bg-gray-50/80 p-1 rounded-full border border-gray-100">
+                                                            <button 
+                                                                onClick={() => syncDoc()} 
+                                                                disabled={isSyncing}
+                                                                className={`text-[10px] flex items-center px-2 py-1 rounded-full font-bold transition-all ${isSyncing ? 'text-indigo-400 opacity-50' : 'bg-white hover:bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'}`}
+                                                                title={`마지막 동기화: ${lastSyncTime?.toLocaleTimeString() || '-'}`}
+                                                            >
+                                                                <RefreshCw className={`w-3 h-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+                                                                {isSyncing ? "동기화 중..." : "동기화"}
+                                                            </button>
+                                                            <button onClick={handleReset} className="text-[10px] flex items-center bg-white hover:bg-gray-100 text-gray-500 px-2 py-1 rounded-full border border-gray-100 transition-colors font-bold">다른 문서</button>
+                                                        </motion.div>
+                                                    )}
                                                 </AnimatePresence>
                                                 {structure && (<button onClick={() => setIsInputFolded(!isInputFolded)} className="p-1 hover:bg-gray-100 rounded text-gray-400"><ChevronUp className={`w-4 h-4 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} /></button>)}
                                             </div>
