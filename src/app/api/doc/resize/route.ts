@@ -45,7 +45,7 @@ export async function POST(req: Request) {
         for (let i = 0; i < requests.length; i += CHUNK_SIZE) {
             const chunk = requests.slice(i, i + CHUNK_SIZE);
             let retryCount = 0;
-            const MAX_RETRIES = 3;
+            const MAX_RETRIES = 5; // Increased retries for stability
 
             while (retryCount <= MAX_RETRIES) {
                 try {
@@ -74,18 +74,23 @@ export async function POST(req: Request) {
                         console.error("API Detail:", JSON.stringify(chunkError.response.data));
                     }
 
-                    const isRetryable = chunkError.message?.includes("Internal error") || chunkError.code === 500;
+                    // Retry on any 5xx error or "Internal error"
+                    const isRetryable = chunkError.message?.includes("Internal error") || chunkError.code >= 500;
                     if (isRetryable && retryCount < MAX_RETRIES) {
                         retryCount++;
-                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                        // Incremental backoff: 2s, 4s, 6s...
+                        await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
                         continue;
                     }
                     throw chunkError;
                 }
             }
 
-            // Small delay between individual requests to prevent overwhelming the API
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Significant delay between individual requests to allow Google Docs to "settle"
+            // This is crucial for avoiding Internal Errors during sequential edits
+            if (i + CHUNK_SIZE < requests.length) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
         }
 
         // Final counts: Update + Insert
