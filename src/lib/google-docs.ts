@@ -300,46 +300,50 @@ export const calculateImageResizeRequests = (
 
     actions.forEach(action => {
         if (action.type === 'inline') {
-            // ROBUST METHOD: Delete the 1-char range and insert a new image with the target size.
-            // This bypasses property update issues and handles all object types reliably.
+            // RETRY: Use updateInlineObjectProperties with the CORRECT structure.
+            // Google Docs API v1 structure:
+            // {
+            //   updateInlineObjectProperties: {
+            //     objectId: string,
+            //     inlineObjectProperties: {
+            //       embeddedObject: {
+            //         size: { width: ..., height: ... }
+            //       }
+            //     },
+            //     fields: "embeddedObject.size"
+            //   }
+            // }
             requests.push({
-                deleteContentRange: {
-                    range: {
-                        startIndex: action.index,
-                        endIndex: action.index + 1
-                    }
+                updateInlineObjectProperties: {
+                    objectId: action.id,
+                    inlineObjectProperties: {
+                        embeddedObject: {
+                            size: {
+                                width: { magnitude: action.width, unit: 'PT' },
+                                height: { magnitude: action.height, unit: 'PT' }
+                            }
+                        }
+                    },
+                    fields: 'embeddedObject.size'
                 }
             });
-            requests.push({
-                insertInlineImage: {
-                    uri: action.uri,
-                    location: { index: action.index },
-                    objectSize: {
-                        width: { magnitude: action.width, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
-                }
-            });
-            originalIds.push(action.id);
         } else if (action.type === 'positioned') {
             requests.push({
-                deletePositionedObject: {
-                    objectId: action.id
+                updatePositionedObjectProperties: {
+                    objectId: action.id,
+                    positionedObjectProperties: {
+                        embeddedObject: {
+                            size: {
+                                width: { magnitude: action.width, unit: 'PT' },
+                                height: { magnitude: action.height, unit: 'PT' }
+                            }
+                        }
+                    },
+                    fields: 'embeddedObject.size'
                 }
             });
-            requests.push({
-                insertInlineImage: {
-                    uri: action.uri,
-                    location: { index: action.anchorIndex },
-                    objectSize: {
-                        width: { magnitude: action.width, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
-                }
-            });
-            originalIds.push(action.id);
         }
     });
 
-    return { requests, originalIds };
+    return { requests, originalIds: [] };
 };
