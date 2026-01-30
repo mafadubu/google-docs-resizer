@@ -377,8 +377,8 @@ export function Dashboard() {
                                                 <AnimatePresence>
                                                     {isLoaded && (
                                                         <motion.div key="sync-group" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center space-x-1.5 bg-gray-50/80 p-1 rounded-full border border-gray-100">
-                                                            <button 
-                                                                onClick={() => syncDoc()} 
+                                                            <button
+                                                                onClick={() => syncDoc()}
                                                                 disabled={isSyncing}
                                                                 className={`text-[10px] flex items-center px-2 py-1 rounded-full font-bold transition-all ${isSyncing ? 'text-indigo-400 opacity-50' : 'bg-white hover:bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'}`}
                                                                 title={`마지막 동기화: ${lastSyncTime?.toLocaleTimeString() || '-'}`}
@@ -425,7 +425,27 @@ export function Dashboard() {
                                     <input type="range" min="5" max="20" step="0.5" value={targetWidth} onChange={(e) => setTargetWidth(Number(e.target.value))} className="flex-1 accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
                                     <div className="flex flex-col items-end min-w-[50px]"><span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mb-0.5">이미지</span><div className="flex items-center text-[10px] font-bold text-gray-700">{selectedImageIds.length > 0 ? `${selectedImageIds.length}개` : selectedScopes.length === 0 ? "전체" : `${selectedScopes.length}개`}</div></div>
                                 </div>
-                                <button onClick={handleResize} disabled={resizeStatus === "processing"} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-[11px] shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2">{resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3 h-3" /><span>크기 조정</span></>}</button>
+                                <div className="flex items-center space-x-2">
+                                    <button onClick={handleResize} disabled={resizeStatus === "processing"} className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-[11px] shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2">
+                                        {resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3 h-3" /><span>크기 조정</span></>}
+                                    </button>
+                                    <div className="relative group">
+                                        <button
+                                            onClick={() => syncDoc()}
+                                            disabled={isSyncing}
+                                            className={`p-2 rounded-xl border transition-all ${isSyncing ? 'bg-gray-50 text-indigo-300 border-gray-100' : 'bg-white hover:bg-indigo-50 text-indigo-600 border-indigo-100 shadow-sm'}`}
+                                        >
+                                            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                                        </button>
+                                        {/* Tooltip */}
+                                        <div className="absolute bottom-full mb-2 right-0 hidden group-hover:block w-48 p-2.5 bg-gray-900/95 backdrop-blur-sm text-white text-[10px] leading-relaxed rounded-xl shadow-2xl z-50 pointer-events-none">
+                                            <div className="relative">
+                                                구글 문서에 이미지를 추가 / 삭제한 경우 동기화를 눌러 주세요.
+                                                <div className="absolute top-full mt-2 right-3 border-[6px] border-transparent border-t-gray-900/95" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
