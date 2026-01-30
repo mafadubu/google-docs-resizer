@@ -526,30 +526,6 @@ export function Dashboard() {
 
                     {/* Right Col: Outline / Content */}
                     <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block space-y-4`}>
-                        <div className="sticky top-[73px] z-40 bg-indigo-600 rounded-2xl p-6 shadow-xl shadow-indigo-200 overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl transition-transform group-hover:scale-110" />
-                            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
-                                <div className="space-y-1">
-                                    <div className="flex items-center space-x-2">
-                                        <h2 className="text-white text-lg font-black tracking-tight">이미지 일괄 조절</h2>
-                                        <div className="px-1.5 py-0.5 bg-white/20 rounded text-[10px] font-black text-white uppercase tracking-widest leading-none">Settings</div>
-                                    </div>
-                                    <p className="text-indigo-100 text-xs font-medium">선택한 모든 이미지의 너비를 한 번에 변경합니다.</p>
-                                </div>
-
-                                <div className="flex items-center space-x-3">
-                                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-1.5 flex items-center space-x-2 border border-white/10">
-                                        <input type="range" min="3" max="20" step="0.5" value={targetWidth} onChange={(e) => setTargetWidth(parseFloat(e.target.value))} className="w-24 h-1.5 bg-indigo-300 rounded-lg appearance-none cursor-pointer accent-white" />
-                                        <span className="text-white font-black text-sm min-w-[3rem] text-center">{targetWidth}cm</span>
-                                    </div>
-                                    <button onClick={() => handleResize()} disabled={resizeStatus === 'processing'} className={`px-6 py-2.5 rounded-xl font-black text-xs transition-all flex items-center shadow-lg hover:-translate-y-0.5 active:translate-y-0 ${resizeStatus === 'processing' ? 'bg-indigo-400 text-white/50 cursor-not-allowed' : 'bg-white text-indigo-600 hover:bg-indigo-50'}`}>
-                                        {resizeStatus === 'processing' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
-                                        크기 조정 시작
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
                         {structure ? (
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
                                 <div className="sticky top-[180px] z-30 bg-white border-b border-gray-100 shadow-sm rounded-t-2xl">
