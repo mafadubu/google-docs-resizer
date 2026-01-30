@@ -527,15 +527,15 @@ export function Dashboard() {
                     {/* Right Col: Outline / Content */}
                     <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block space-y-4`}>
                         {structure ? (
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
-                                <div className="sticky top-[71.5px] z-30 bg-white border-b border-gray-100 shadow-md rounded-t-2xl">
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[600px] overflow-hidden">
+                                <div className="sticky top-[73px] z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm px-4">
                                     {!activeChapterId ? (
-                                        <div className="p-4 rounded-t-2xl"><h2 className="text-base font-bold text-gray-900 truncate">{structure.title}</h2><p className="text-xs text-gray-500">아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다.</p></div>
+                                        <div className="py-5"><h2 className="text-base font-black text-gray-900 truncate leading-tight">{structure.title}</h2><p className="text-[11px] text-gray-500 mt-1">상세 조절을 위해 아래 챕터를 선택해 주세요.</p></div>
                                     ) : (
-                                        <div className="divide-y divide-gray-50 rounded-t-2xl">
-                                            <div className="flex items-center justify-between p-3">
-                                                <button onClick={handleBackToOutline} className="flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors text-xs font-bold"><ChevronLeft className="w-3.5 h-3.5 mr-1" />목차로</button>
-                                                <div className="flex-1 px-4 text-center"><h3 className="text-sm font-black text-gray-900 truncate">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3></div>
+                                        <div className="divide-y divide-gray-50">
+                                            <div className="flex items-center justify-between py-3">
+                                                <button onClick={handleBackToOutline} className="flex items-center px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all text-[11px] font-black"><ChevronLeft className="w-3.5 h-3.5 mr-1" />목차로 돌아가기</button>
+                                                <div className="flex-1 px-4 text-center min-w-0"><h3 className="text-sm font-black text-gray-900 truncate">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3></div>
                                                 <button onClick={() => {
                                                     const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                     if (!currentChapter) return;
@@ -543,27 +543,28 @@ export function Dashboard() {
                                                     const areAllSelected = allIds.every((id: string) => selectedImageIds.includes(id));
                                                     if (areAllSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
                                                     else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
-                                                }} className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 px-2 py-1">{(() => {
+                                                }} className="text-[11px] font-black text-indigo-500 hover:text-indigo-700 px-3 py-2 bg-indigo-50/50 rounded-xl transition-all">{(() => {
                                                     const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                     const allIds = currentChapter?.images.map((img: any) => img.id) || [];
-                                                    return allIds.every((id: string) => selectedImageIds.includes(id)) ? "선택 해제" : "전체 선택";
+                                                    return allIds.every((id: string) => selectedImageIds.includes(id)) ? "전체 해제" : "전체 선택";
                                                 })()}</button>
                                             </div>
-                                            <div className="flex items-center justify-between p-2 px-3">
-                                                <div className="flex items-center bg-gray-50 rounded-xl p-1">
-                                                    <button onClick={() => setViewMode('grid')} className={`flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}><Grid3X3 className="w-3.5 h-3.5 mr-1.5" />그리드</button>
-                                                    <button onClick={() => setViewMode('carousel')} className={`flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}><Maximize2 className="w-3.5 h-3.5 mr-1.5" />캐러셀</button>
+                                            <div className="flex items-center justify-between py-2.5">
+                                                <div className="flex items-center bg-gray-100/50 rounded-xl p-1">
+                                                    <button onClick={() => setViewMode('grid')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Grid3X3 className="w-3.5 h-3.5 mr-1.5" />그리드</button>
+                                                    <button onClick={() => setViewMode('carousel')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Maximize2 className="w-3.5 h-3.5 mr-1.5" />캐러셀</button>
                                                 </div>
                                                 {viewMode === 'grid' && (
-                                                    <div className="flex items-center space-x-1 pl-4">
-                                                        {[1, 2, 3, 4, 5].map(num => (<button key={num} onClick={() => setGridCols(num)} className={`w-6 h-6 rounded-md text-[10px] font-black transition-all ${gridCols === num ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-100'}`}>{num}</button>))}
+                                                    <div className="flex items-center space-x-1.5">
+                                                        {[2, 3, 4, 5].map(num => (<button key={num} onClick={() => setGridCols(num)} className={`w-7 h-7 rounded-lg text-[11px] font-black transition-all flex items-center justify-center ${gridCols === num ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>{num}</button>))}
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                                <div className="p-6 flex-1">
+                                <div className="p-6 pt-2 flex-1 relative">
+                                    <div className="absolute top-0 left-0 w-full h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
                                     {activeChapterId ? (
                                         <div>
                                             {(() => {
