@@ -289,7 +289,6 @@ export const calculateImageResizeRequests = (
 
     // Sort actions by Index Descending
     // For Positioned objects, we use anchorIndex.
-    // We should process actions completely from end to start.
     actions.sort((a, b) => {
         const idxA = a.type === 'inline' ? a.index : a.anchorIndex;
         const idxB = b.type === 'inline' ? b.index : b.anchorIndex;
@@ -301,29 +300,23 @@ export const calculateImageResizeRequests = (
 
     actions.forEach(action => {
         if (action.type === 'inline') {
-            // 1. Delete Old Image first
+            // OPTIMIZED: Use update properties - preserves ID, safer indices
             requests.push({
-                deleteContentRange: {
-                    range: {
-                        startIndex: action.index,
-                        endIndex: action.index + 1
-                    }
+                updateInlineObjectProperties: {
+                    objectId: action.id,
+                    inlineObjectProperties: {
+                        embeddedObject: {
+                            size: {
+                                width: { magnitude: action.width, unit: 'PT' },
+                                height: { magnitude: action.height, unit: 'PT' }
+                            }
+                        }
+                    },
+                    fields: 'embeddedObject.size'
                 }
             });
-            // 2. Insert New Image at the SAME index
-            requests.push({
-                insertInlineImage: {
-                    uri: action.uri,
-                    location: { index: action.index },
-                    objectSize: {
-                        width: { magnitude: action.width, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
-                }
-            });
-            originalIds.push(action.id);
         } else if (action.type === 'positioned') {
-            // Positioned objects: Delete + Insert Inline
+            // Positioned objects: Still need Delete + Insert Inline
             requests.push({
                 deletePositionedObject: {
                     objectId: action.id

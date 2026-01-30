@@ -37,8 +37,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "No images found to resize", count: 0 });
         }
 
-        // 3. Batch Update in smaller Chunks with retries to avoid "Internal error"
-        const CHUNK_SIZE = 10; // 5 images (10 requests) at a time - VERY conservative for stability
+        // 3. Batch Update in small chunks for extreme stability
+        const CHUNK_SIZE = 10; // 5-10 requests at a time
         const newIdMapping: Record<string, string> = {};
         let totalInsertCount = 0;
 
@@ -56,52 +56,53 @@ export async function POST(req: Request) {
                         },
                     });
 
-                    // Extract New IDs for this chunk
-                    let chunkInsertCount = 0;
-                    const originalIdsForThisChunk = originalIds.slice(totalInsertCount, totalInsertCount + (chunk.filter(r => r.insertInlineImage).length));
-
-                    response.data.replies?.forEach((reply) => {
-                        if (reply.insertInlineImage) {
-                            const oldId = originalIdsForThisChunk[chunkInsertCount];
-                            const newId = reply.insertInlineImage.objectId;
-                            if (oldId && newId) {
-                                newIdMapping[oldId] = newId;
-                            }
-                            chunkInsertCount++;
-                        }
-                    });
-                    totalInsertCount += chunkInsertCount;
-
-                    // Success! Break retry loop
-                    break;
-                } catch (chunkError: any) {
-                    const isRetryable = chunkError.message?.includes("Internal error") || chunkError.code === 500 || chunkError.message?.includes("Invalid JSON payload");
-                    if (isRetryable && retryCount < MAX_RETRIES) {
-                        retryCount++;
-                        console.warn(`Error on chunk ${i}, retrying (${retryCount}/${MAX_RETRIES})...`);
-                        await new Promise(resolve => setTimeout(resolve, 1500 * retryCount)); // Exponential backoff
-                        continue;
+                    // Extract New IDs (only for Insertions, e.g. Positioned images turned Inline)
+                    // updateInlineObjectProperties preserves the original ID.
+                    const insertReplies = response.data.replies?.filter((r: any) => r.insertInlineImage) || [];
+                    if (insertReplies.length > 0) {
+                        const originalIdsForThisChunk = originalIds.slice(totalInsertCount, totalInsertCount + insertReplies.length);
+                        insertReplies.forEach((reply: any, idx: number) => {
+                            const oldId = originalIdsForThisChunk[idx];
+                            const newId = reply.insertInlineImage?.objectId;
+                            if (oldId && newId) newIdMapping[oldId] = newId;
+                        });
+                        totalInsertCount += insertReplies.length;
                     }
 
-                    console.error(`Final failure at chunk index ${i}:`, chunkError);
+                    break;
+                } catch (chunkError: any) {
+                    console.error(`Error on chunk ${i}:`, chunkError.message);
+                    if (chunkError.response?.data) {
+                        console.error("API Error Payload:", JSON.stringify(chunkError.response.data, null, 2));
+                    }
+
+                    const isRetryable = chunkError.message?.includes("Internal error") || chunkError.code === 500;
+                    if (isRetryable && retryCount < MAX_RETRIES) {
+                        retryCount++;
+                        await new Promise(resolve => setTimeout(resolve, 1500 * retryCount));
+                        continue;
+                    }
                     throw chunkError;
                 }
             }
 
-            // More generous delay between chunks
             if (i + CHUNK_SIZE < requests.length) {
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
         }
+
+        // Final counts: Update + Insert
+        const updateCount = requests.filter(r => r.updateInlineObjectProperties).length;
+        const totalCount = updateCount + totalInsertCount;
 
         // Update stats (fire and forget)
         incrementStats(requests.length).catch(e => console.error("Stats Error:", e));
 
         return NextResponse.json({
             success: true,
-            count: totalInsertCount,
+            count: totalCount,
             newIdMapping,
-            message: `Successfully resized ${totalInsertCount} images.`
+            message: `Successfully resized ${totalCount} images.`
         });
 
     } catch (error: any) {
