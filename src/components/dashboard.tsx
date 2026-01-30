@@ -122,13 +122,19 @@ export function Dashboard() {
                 // Standard scrollIntoView handles nested scroll containers (sidebar + internal list) automatically
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-                // Force internal container scroll if provided (additional centering)
+                // Force internal container scroll if provided
                 if (containerId) {
                     const container = document.getElementById(containerId);
                     if (container && container.scrollHeight > container.clientHeight) {
                         const rect = el.getBoundingClientRect();
                         const containerRect = container.getBoundingClientRect();
-                        const targetTop = container.scrollTop + (rect.top - containerRect.top) - (containerRect.height / 2) + (rect.height / 2);
+                        
+                        // If it's summary list, align to TOP (with offset) like it's sticking to the menu
+                        const isSummary = containerId === 'summary-list';
+                        const targetTop = isSummary 
+                            ? container.scrollTop + (rect.top - containerRect.top) - 8 // Align top with small padding
+                            : container.scrollTop + (rect.top - containerRect.top) - (containerRect.height / 2) + (rect.height / 2); // Center otherwise
+                            
                         container.scrollTo({ top: targetTop, behavior: 'smooth' });
                     }
                 }
@@ -536,7 +542,7 @@ export function Dashboard() {
                                                                                             } else {
                                                                                                 setSelectedImageIds(prev => [...prev, img.id]);
                                                                                             }
-                                                                                            scrollToElement(`summary-img-${img.id}`, 'summary-list', { type: 'heading', id: item.id, fallbackId: `summary-heading-${item.id}` });
+                                                                                            scrollToElement(`summary-heading-${item.id}`, 'summary-list');
                                                                                         }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
                                                                                             <div className="relative aspect-video flex items-center justify-center p-3">
                                                                                                 <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
@@ -573,7 +579,7 @@ export function Dashboard() {
                                                                     } else {
                                                                         setSelectedImageIds(prev => [...prev, activeImg.id]);
                                                                     }
-                                                                    scrollToElement(`summary-img-${activeImg.id}`, 'summary-list', { type: 'heading', id: currentChapter.id, fallbackId: `summary-heading-${currentChapter.id}` });
+                                                                    scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
                                                                 }} className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border shadow-sm'}`}>{isActiveSelected ? "선택 해제" : "현재 이미지 선택"}</button></div>
                                                             </div>
                                                             <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
@@ -621,13 +627,7 @@ export function Dashboard() {
                                                                     setSelectedScopes(prev => { const existingStarts = new Set(newScopes.map(s => s.start)); const cleanPrev = prev.filter(s => !existingStarts.has(s.start)); return [...cleanPrev, ...newScopes]; });
                                                                     setSelectedImageIds(prev => Array.from(new Set([...prev, ...allImageIds])));
 
-                                                                    // Scroll to the first image of this chapter in summary
-                                                                    const firstImageId = item.images[0]?.id;
-                                                                    if (firstImageId) {
-                                                                        scrollToElement(`summary-img-${firstImageId}`, 'summary-list', { type: 'heading', id: item.id, fallbackId: `summary-heading-${item.id}` });
-                                                                    } else {
-                                                                        scrollToElement(`summary-heading-${item.id}`, 'summary-list');
-                                                                    }
+                                                                    scrollToElement(`summary-heading-${item.id}`, 'summary-list');
                                                                 }
                                                             }} className={`w-4 h-4 mr-4 flex-shrink-0 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>{isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}</div>
                                                             <div className="flex items-center flex-1" style={{ paddingLeft: `${(item.level - 1) * 20}px` }}>
