@@ -6,7 +6,8 @@ import {
     Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle,
     ShieldCheck, ChevronUp, User, ChevronLeft, ChevronRight, ImageIcon,
     MousePointerClick, Grid3X3, Maximize2, Columns, LayoutList,
-    AlertCircle, Info, ExternalLink, HelpCircle, Copy, ArrowRight, Trash2
+    AlertCircle, Info, ExternalLink, HelpCircle, Copy, ArrowRight, Trash2,
+    Folder, Plus, FolderPlus, Archive, Settings2, MoreHorizontal
 } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 import { WarningModal } from "@/components/warning-modal";
@@ -42,6 +43,15 @@ export function Dashboard() {
     const [resizeStatus, setResizeStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
     const [resultMsg, setResultMsg] = useState("");
 
+    // Bookmark States
+    const [bookmarks, setBookmarks] = useState<Array<{ id: string; name: string; targetWidth: number; imageIds: string[] }>>([]);
+    const [showNewBookmarkModal, setShowNewBookmarkModal] = useState(false);
+    const [newBookmarkWidthInput, setNewBookmarkWidthInput] = useState<string>("");
+    const [activeBookmarkId, setActiveBookmarkId] = useState<string | null>(null);
+    const [draggedImageId, setDraggedImageId] = useState<string | null>(null);
+    const [activeBookmarkTab, setActiveBookmarkTab] = useState<string | null>(null);
+    const [summaryActionMenu, setSummaryActionMenu] = useState<{ id: string; type: 'item' | 'heading' } | null>(null);
+
     const imageToHeadingMap = React.useMemo(() => {
         if (!structure) return {} as Record<string, string>;
         const map: Record<string, string> = {};
@@ -60,6 +70,42 @@ export function Dashboard() {
         });
         return map;
     }, [structure]);
+
+    const findImageById = (id: string) => {
+        if (!structure) return null;
+        for (const item of structure.items) {
+            const img = item.images.find((i: any) => i.id === id);
+            if (img) return img;
+        }
+        return null;
+    };
+
+    const addImageToBookmark = (folderId: string, imageId: string) => {
+        setBookmarks(prev => prev.map(b => {
+            if (b.id === folderId) {
+                if (b.imageIds.includes(imageId)) return b;
+                return { ...b, imageIds: [...b.imageIds, imageId] };
+            }
+            return b;
+        }));
+    };
+
+    const handleCreateBookmark = () => {
+        const width = parseFloat(newBookmarkWidthInput);
+        if (isNaN(width) || width < 5 || width > 20) {
+            alert("5에서 20 사이의 숫자를 입력해주세요.");
+            return;
+        }
+        const newBookmark = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: `${width}cm`,
+            targetWidth: width,
+            imageIds: []
+        };
+        setBookmarks([...bookmarks, newBookmark]);
+        setShowNewBookmarkModal(false);
+        setNewBookmarkWidthInput("");
+    };
 
     const getImageHierarchy = (imageId: string) => {
         if (!structure) return null;
@@ -533,6 +579,37 @@ export function Dashboard() {
                                                                     <h4 className={`font-black tracking-tight truncate ${isTopLevel ? 'text-indigo-950 text-xs' : 'text-indigo-900 text-[11px]'}`}>{item.title}</h4>
                                                                 </div>
                                                             </div>
+                                                            <div className="relative">
+                                                                <button onClick={() => setSummaryActionMenu(summaryActionMenu?.id === item.id ? null : { id: item.id, type: 'heading' })} className="p-1 px-1.5 hover:bg-indigo-100/50 rounded-lg text-indigo-400 transition-colors">
+                                                                    <FolderPlus className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                {summaryActionMenu?.id === item.id && (
+                                                                    <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-indigo-100 rounded-xl shadow-2xl z-50 p-1.5 overflow-hidden">
+                                                                        <div className="px-2 py-1.5 text-[9px] font-black text-indigo-300 uppercase tracking-widest border-b border-indigo-50 mb-1">북마크 폴더 선택</div>
+                                                                        {bookmarks.length === 0 ? (
+                                                                            <div className="px-2 py-3 text-center text-[10px] text-gray-400">폴더가 없습니다.</div>
+                                                                        ) : (
+                                                                            <div className="space-y-0.5">
+                                                                                {bookmarks.map(b => (
+                                                                                    <button key={b.id} onClick={() => {
+                                                                                        const idsToAdd = item.images.filter((img: any) => selectedImageIds.includes(img.id)).map((img: any) => img.id);
+                                                                                        setBookmarks(prev => prev.map(f => f.id === b.id ? { ...f, imageIds: Array.from(new Set([...f.imageIds, ...idsToAdd])) } : f));
+                                                                                        setSummaryActionMenu(null);
+                                                                                        setSuccessMsg(`${b.name} 폴더에 ${idsToAdd.length}개의 이미지를 추가했습니다.`);
+                                                                                        setShowSuccess(true);
+                                                                                    }} className="w-full text-left px-2.5 py-2 text-[11px] font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all flex items-center justify-between group">
+                                                                                        <span className="flex items-center"><Folder className="w-3 h-3 mr-2 opacity-50 group-hover:opacity-100" />{b.name}</span>
+                                                                                        <Plus className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100" />
+                                                                                    </button>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                        <button onClick={() => { setSummaryActionMenu(null); setShowNewBookmarkModal(true); }} className="w-full text-left px-2.5 py-2 text-[11px] font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg mt-1 border-t border-indigo-50 flex items-center pt-2">
+                                                                            <Plus className="w-3 h-3 mr-2" />새 폴더 만들기
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         {chapterImages.length > 0 && (
                                                             <div className={`grid gap-3 grid-cols-4`}>
@@ -558,7 +635,64 @@ export function Dashboard() {
                     </div>
 
                     {/* Right Col: Outline / Content */}
-                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block`}>
+                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block space-y-4`}>
+                        {structure && (
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-base font-bold flex items-center"><Archive className="w-4 h-4 mr-2 text-indigo-500" />3. 이미지 북마크</h2>
+                                    <button onClick={() => setShowNewBookmarkModal(true)} className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"><Plus className="w-4 h-4" /></button>
+                                </div>
+
+                                {bookmarks.length === 0 ? (
+                                    <div className="py-8 bg-gray-50/50 border border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-gray-400">
+                                        <FolderPlus className="w-8 h-8 mb-2 opacity-20" />
+                                        <p className="text-[10px] font-bold">북마크 폴더를 만들어 보세요.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {bookmarks.map(folder => (
+                                            <div
+                                                key={folder.id}
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={(e) => {
+                                                    const imgId = e.dataTransfer.getData("imageId") || draggedImageId;
+                                                    if (imgId) addImageToBookmark(folder.id, imgId);
+                                                    setDraggedImageId(null);
+                                                }}
+                                                onClick={() => setActiveBookmarkId(folder.id)}
+                                                className={`group relative p-4 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md ${activeBookmarkTab === folder.id ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-100 hover:border-indigo-200'}`}
+                                            >
+                                                <div className="flex flex-col items-center space-y-2">
+                                                    <div className={`p-2 rounded-xl ${activeBookmarkTab === folder.id ? 'bg-white/20' : 'bg-indigo-50 text-indigo-500'}`}>
+                                                        <Folder className="w-5 h-5 fill-current opacity-70" />
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <div className={`text-xs font-black ${activeBookmarkTab === folder.id ? 'text-white' : 'text-gray-900'}`}>{folder.name}</div>
+                                                        <div className={`text-[8px] font-bold ${activeBookmarkTab === folder.id ? 'text-indigo-100' : 'text-gray-400'}`}>이미지 {folder.imageIds.length}개</div>
+                                                    </div>
+                                                </div>
+
+                                                {folder.imageIds.length > 0 && (
+                                                    <div className="absolute top-2 right-2">
+                                                        <div onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setTargetWidth(folder.targetWidth);
+                                                            setSelectedImageIds(folder.imageIds);
+                                                            setActiveBookmarkTab(folder.id);
+                                                            setSuccessMsg(`${folder.name} 북마크가 선택되었습니다. (${folder.imageIds.length}개)`);
+                                                            setShowSuccess(true);
+                                                        }} className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${activeBookmarkTab === folder.id ? 'bg-white text-indigo-600' : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100'}`}>
+                                                            <div className={`w-2.5 h-2.5 rounded-sm border-2 ${activeBookmarkTab === folder.id ? 'bg-indigo-600 border-indigo-600' : 'border-indigo-400'}`} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {structure ? (
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
                                 <div className="sticky top-[73px] z-40 bg-white border-b border-gray-100 shadow-sm rounded-t-2xl">
@@ -630,14 +764,20 @@ export function Dashboard() {
                                                                                     const isImgSelected = selectedImageIds.includes(img.id);
                                                                                     const originalIdx = item.images.findIndex((i: any) => i.id === img.id);
                                                                                     return (
-                                                                                        <div key={img.id} id={`detail-img-${img.id}`} onClick={() => {
-                                                                                            if (isImgSelected) {
-                                                                                                setSelectedImageIds(prev => prev.filter(id => id !== img.id));
-                                                                                            } else {
-                                                                                                setSelectedImageIds(prev => [...prev, img.id]);
-                                                                                            }
-                                                                                            scrollToElement(`summary-heading-${item.id}`, 'summary-list');
-                                                                                        }} className={`relative cursor-pointer rounded-2xl border-2 transition-all overflow-hidden flex flex-col bg-gray-50 group ${isImgSelected ? 'border-indigo-500 shadow-lg' : 'border-transparent hover:border-gray-200'}`}>
+                                                                                        <div key={img.id}
+                                                                                            draggable
+                                                                                            onDragStart={(e) => {
+                                                                                                setDraggedImageId(img.id);
+                                                                                                e.dataTransfer.setData("imageId", img.id);
+                                                                                            }}
+                                                                                            onClick={() => {
+                                                                                                if (isImgSelected) {
+                                                                                                    setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                                                } else {
+                                                                                                    setSelectedImageIds(prev => [...prev, img.id]);
+                                                                                                }
+                                                                                                scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
+                                                                                            }} className={`group relative bg-white rounded-2xl overflow-hidden border-2 transition-all cursor-pointer shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 ${isImgSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-indigo-100' : 'border-gray-100 hover:border-indigo-200'}`}>
                                                                                             <div className="relative aspect-video flex items-center justify-center p-3">
                                                                                                 <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
                                                                                                 <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
@@ -747,6 +887,125 @@ export function Dashboard() {
                     </div>
                 </div>
             </main>
+
+            {/* New Bookmark Modal */}
+            <AnimatePresence>
+                {showNewBookmarkModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowNewBookmarkModal(false)} className="absolute inset-0 bg-indigo-950/40 backdrop-blur-sm" />
+                        <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl border border-white">
+                            <div className="p-8 pb-6">
+                                <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6"><FolderPlus className="w-7 h-7 text-indigo-600" /></div>
+                                <h3 className="text-xl font-black text-gray-900 mb-2">새 북마크 폴더</h3>
+                                <p className="text-sm text-gray-500 leading-relaxed font-medium">이미지 크기를 얼만큼으로 만들고 싶으세요?</p>
+                                <div className="mt-8 relative">
+                                    <input autoFocus type="number" min="5" max="20" value={newBookmarkWidthInput} onChange={(e) => setNewBookmarkWidthInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateBookmark()} placeholder="5 ~ 20 (cm)" className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 text-2xl font-black text-indigo-600 outline-none focus:border-indigo-500 transition-all placeholder:text-gray-200" />
+                                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-lg font-black text-gray-300">cm</span>
+                                </div>
+                            </div>
+                            <div className="p-2 flex space-x-2 bg-gray-50/50">
+                                <button onClick={() => setShowNewBookmarkModal(false)} className="flex-1 py-4 text-xs font-black text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-widest">취소</button>
+                                <button onClick={handleCreateBookmark} className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black shadow-xl shadow-indigo-200 transition-all uppercase tracking-widest">폴더 생성</button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Bookmark Detail Viewer */}
+            <AnimatePresence>
+                {activeBookmarkId && (
+                    <div className="fixed inset-0 z-[90] flex items-center justify-center p-6 md:p-12">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveBookmarkId(null)} className="absolute inset-0 bg-gray-950/60 backdrop-blur-md" />
+                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 40 }} className="relative bg-white w-full max-w-5xl h-full max-h-[85vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20">
+                            {/* Header */}
+                            {(() => {
+                                const folder = bookmarks.find(b => b.id === activeBookmarkId);
+                                if (!folder) return null;
+                                return (
+                                    <>
+                                        <div className="p-6 md:p-8 flex items-center justify-between border-b border-gray-50">
+                                            <div className="flex items-center space-x-4">
+                                                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200"><Folder className="w-6 h-6 text-white" /></div>
+                                                <div>
+                                                    <h3 className="text-xl font-black text-gray-950">{folder.name} 북마크</h3>
+                                                    <p className="text-xs font-bold text-gray-400 flex items-center"><ImageIcon className="w-3 h-3 mr-1" />{folder.imageIds.length}개의 이미지 보관 중</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center space-x-3">
+                                                <button onClick={() => {
+                                                    setTargetWidth(folder.targetWidth);
+                                                    setSelectedImageIds(folder.imageIds);
+                                                    setActiveBookmarkTab(folder.id);
+                                                    setActiveBookmarkId(null);
+                                                    setSuccessMsg(`${folder.name} 북마크 이미지가 모두 선택되었습니다.`);
+                                                    setShowSuccess(true);
+                                                }} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xl shadow-indigo-100 transition-all">이 폴더로 작업하기</button>
+                                                <button onClick={() => setActiveBookmarkId(null)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl transition-all">×</button>
+                                            </div>
+                                        </div>
+                                        {/* Content - Heirarchy Based Like 항목 요약 */}
+                                        <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar bg-gray-50/30">
+                                            {folder.imageIds.length === 0 ? (
+                                                <div className="h-full flex flex-col items-center justify-center text-gray-300">
+                                                    <Archive className="w-16 h-16 mb-4 opacity-10" />
+                                                    <p className="text-sm font-bold">북마크에 저장된 이미지가 없습니다.</p>
+                                                    <p className="text-[10px] mt-1 font-medium">오른쪽 화면에서 이미지를 끌어와서 넣어주세요.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-6">
+                                                    {structure.items.map((item: any) => {
+                                                        const folderImages = item.images.filter((img: any) => folder.imageIds.includes(img.id));
+                                                        if (folderImages.length === 0) return null;
+                                                        const hierarchy = getImageHierarchy(folderImages[0].id);
+                                                        return (
+                                                            <div key={item.id} className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center space-x-3">
+                                                                        <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
+                                                                        <div>
+                                                                            {hierarchy && hierarchy.length > 1 && (
+                                                                                <div className="flex items-center space-x-1 opacity-40 mb-0.5">
+                                                                                    <span className="text-[9px] font-black uppercase text-indigo-500">{hierarchy[0]}</span>
+                                                                                    {hierarchy.length > 2 && <ChevronRight className="w-2.5 h-2.5" />}
+                                                                                </div>
+                                                                            )}
+                                                                            <h4 className="font-black text-sm text-indigo-950 uppercase tracking-tight">{item.title}</h4>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const idsToRemove = folderImages.map((img: any) => img.id);
+                                                                            setBookmarks(prev => prev.map(b => b.id === folder.id ? { ...b, imageIds: b.imageIds.filter(id => !idsToRemove.includes(id)) } : b));
+                                                                        }}
+                                                                        className="text-[10px] font-black text-gray-300 hover:text-red-500 transition-colors uppercase tracking-widest"
+                                                                    >전체 제외</button>
+                                                                </div>
+                                                                <div className="grid grid-cols-4 md:grid-cols-6 gap-4">
+                                                                    {folderImages.map((img: any) => (
+                                                                        <div key={img.id} className="group relative aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
+                                                                            <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
+                                                                            <button onClick={() => {
+                                                                                setBookmarks(prev => prev.map(b => b.id === folder.id ? { ...b, imageIds: b.imageIds.filter(id => id !== img.id) } : b));
+                                                                            }} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                <div className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded shadow-lg transform scale-0 group-hover:scale-100 transition-transform">제외</div>
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
