@@ -6,8 +6,7 @@ import {
     Loader2, Search, FileText, Layout, RefreshCw, LogOut, CheckCircle,
     ShieldCheck, ChevronUp, User, ChevronLeft, ChevronRight, ImageIcon,
     MousePointerClick, Grid3X3, Maximize2, Columns, LayoutList,
-    AlertCircle, Info, ExternalLink, HelpCircle, Copy, ArrowRight, Trash2,
-    Folder, Plus, FolderPlus, Archive, Settings2, MoreHorizontal
+    AlertCircle, Info, ExternalLink, HelpCircle, Copy, ArrowRight, Trash2
 } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 import { WarningModal } from "@/components/warning-modal";
@@ -39,18 +38,10 @@ export function Dashboard() {
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
     const [imgError, setImgError] = useState(false);
 
+    // Core States
     const [targetWidth, setTargetWidth] = useState(10); // cm
     const [resizeStatus, setResizeStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
     const [resultMsg, setResultMsg] = useState("");
-
-    // Bookmark States
-    const [bookmarks, setBookmarks] = useState<Array<{ id: string; name: string; targetWidth: number; imageIds: string[] }>>([]);
-    const [showNewBookmarkModal, setShowNewBookmarkModal] = useState(false);
-    const [newBookmarkWidthInput, setNewBookmarkWidthInput] = useState<string>("");
-    const [activeBookmarkId, setActiveBookmarkId] = useState<string | null>(null);
-    const [draggedImageId, setDraggedImageId] = useState<string | null>(null);
-    const [activeBookmarkTab, setActiveBookmarkTab] = useState<string | null>(null);
-    const [summaryActionMenu, setSummaryActionMenu] = useState<{ id: string; type: 'item' | 'heading' } | null>(null);
 
     const imageToHeadingMap = React.useMemo(() => {
         if (!structure) return {} as Record<string, string>;
@@ -78,59 +69,6 @@ export function Dashboard() {
             if (img) return img;
         }
         return null;
-    };
-
-    const addImageToBookmark = (folderId: string, imageId: string) => {
-        setBookmarks(prev => prev.map(b => {
-            if (b.id === folderId) {
-                if (b.imageIds.includes(imageId)) return b;
-                return { ...b, imageIds: [...b.imageIds, imageId] };
-            }
-            return b;
-        }));
-    };
-
-    const [showSummaryBookmarkMenu, setShowSummaryBookmarkMenu] = useState(false);
-
-    const summaryBookmarkRef = React.useRef<HTMLDivElement>(null);
-
-    // Click outside handler for summary bookmark menu
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (summaryBookmarkRef.current && !summaryBookmarkRef.current.contains(event.target as Node)) {
-                setShowSummaryBookmarkMenu(false);
-            }
-        }
-        if (showSummaryBookmarkMenu) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [showSummaryBookmarkMenu]);
-
-    const handleCreateBookmark = () => {
-        const width = parseFloat(newBookmarkWidthInput);
-        if (isNaN(width) || width < 5 || width > 20) {
-            alert("5에서 20 사이의 숫자를 입력해주세요.");
-            return;
-        }
-        const newBookmark = {
-            id: Math.random().toString(36).substr(2, 9),
-            name: `${width}cm`,
-            targetWidth: width,
-            imageIds: []
-        };
-        setBookmarks([...bookmarks, newBookmark]);
-        setShowNewBookmarkModal(false);
-        setNewBookmarkWidthInput("");
-    };
-
-    const handleRemoveBookmark = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!confirm("이 북마크 폴더를 삭제하시겠습니까?")) return;
-        setBookmarks(prev => prev.filter(b => b.id !== id));
-        if (activeBookmarkTab === id) setActiveBookmarkTab(null);
     };
 
     const getImageHierarchy = (imageId: string) => {
@@ -179,54 +117,43 @@ export function Dashboard() {
         localStorage.setItem("has-seen-guide", "true");
     };
 
-    // Helper: Scroll to element with offset if needed
     const scrollToElement = (id: string, containerId?: string, autoNavigateId?: { type: 'chapter' | 'heading', id: string, fallbackId?: string }) => {
         const tryScroll = (retryCount = 0) => {
             const el = document.getElementById(id) || (autoNavigateId?.fallbackId ? document.getElementById(autoNavigateId.fallbackId) : null);
 
-            // 1. If element not found and we need to navigate chapters (Right Col)
             if (!el && autoNavigateId && autoNavigateId.type === 'chapter') {
                 setActiveChapterId(autoNavigateId.id);
                 if (retryCount < 5) setTimeout(() => tryScroll(retryCount + 1), 250);
                 return;
             }
 
-            // 2. Element found
             if (el) {
-                // If it's summary list, we need to decide whether to scroll the internal list or the sidebar
                 if (containerId === 'summary-list') {
                     const sidebar = document.getElementById('sidebar-container');
                     const internalList = document.getElementById('summary-list');
 
                     if (isSummaryExpanded && sidebar) {
-                        // In expanded mode, the sidebar itself is the scroll container
                         const elRect = el.getBoundingClientRect();
                         const sidebarRect = sidebar.getBoundingClientRect();
-
-                        // Find the sticky header height to avoid overlap
                         const stickyHeader = sidebar.querySelector('.sticky');
                         const headerOffset = stickyHeader ? stickyHeader.getBoundingClientRect().height : 100;
 
                         const targetTop = sidebar.scrollTop + (elRect.top - sidebarRect.top) - headerOffset - 20;
                         sidebar.scrollTo({ top: targetTop, behavior: 'smooth' });
                     } else if (internalList && internalList.scrollHeight > internalList.clientHeight) {
-                        // In compact mode, the internal list is the scroll container
                         const elRect = el.getBoundingClientRect();
                         const listRect = internalList.getBoundingClientRect();
                         const targetTop = internalList.scrollTop + (elRect.top - listRect.top) - 8;
                         internalList.scrollTo({ top: targetTop, behavior: 'smooth' });
                     }
                 } else {
-                    // Standard scrollIntoView for other cases (like detail view)
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             } else if (retryCount < 10) {
-                // 3. Keep trying (Useful when summary box is mounting for the first time)
                 setTimeout(() => tryScroll(retryCount + 1), 100);
             }
         };
 
-        // Start scrolling attempt
         setTimeout(() => tryScroll(0), 50);
     };
 
@@ -287,7 +214,6 @@ export function Dashboard() {
             const data = await res.json();
             if (data.error) throw new Error(data.error);
 
-            // Keep existing selections that are still valid in the new structure
             const allNewImageIds = new Set(data.items.flatMap((item: any) => item.images.map((img: any) => img.id)));
             const allNewScopeStarts = new Set(data.items.map((item: any) => item.startIndex));
 
@@ -311,7 +237,6 @@ export function Dashboard() {
     useEffect(() => {
         const handleFocus = () => {
             if (isLoaded && structure?.id) {
-                // Refresh silently when tab gets focus (e.g., coming back from Google Docs)
                 syncDoc(true);
             }
         };
@@ -376,6 +301,7 @@ export function Dashboard() {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
+
             if (data.count === 0) {
                 setWarningMsg("크기를 조절할 이미지를 찾지 못했습니다. 선택 범위를 확인해 주세요.");
                 setShowWarning(true);
@@ -395,12 +321,6 @@ export function Dashboard() {
                         }));
                         setStructure(newStructure);
                     }
-
-                    // Update bookmarks if needed
-                    setBookmarks(prev => prev.map(b => ({
-                        ...b,
-                        imageIds: b.imageIds.map(id => mapping[id] || id)
-                    })));
                 }
                 setResizeStatus("success");
                 setResultMsg(data.message);
@@ -447,78 +367,70 @@ export function Dashboard() {
                     <button onClick={() => signOut()} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="로그아웃"><LogOut className="w-5 h-5" /></button>
                 </div>
             </header>
+
             <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 py-8">
                 <AnimatePresence>{showSuccess && <SuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} message={successMsg} />}</AnimatePresence>
                 <div className="grid md:grid-cols-12 gap-8">
                     {/* Left Col: Setup - Sticky Sidebar */}
                     <div id="sidebar-container" className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-4'} space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain`}>
-                        <AnimatePresence>
-                            <div className="space-y-4">
-                                {/* Tips - Only show when NOT expanded and NO structure */}
+                        <div className="space-y-4">
+                            <AnimatePresence>
+                                {!isSummaryExpanded && !structure && (
+                                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-3 mb-4">
+                                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-900 shadow-sm relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-2 opacity-5"><FileText className="w-16 h-16" /></div>
+                                            <h3 className="font-bold mb-2 flex items-center text-blue-800"><CheckCircle className="w-4 h-4 mr-2 text-blue-600" />시작하기 전에 확인해 주세요!</h3>
+                                            <ul className="space-y-1.5 pl-1 z-10 relative text-[11px] leading-relaxed">
+                                                <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">1.</span><span>수정하려는 문서의 <strong className="font-bold">편집 권한</strong>이 있는지 확인해주세요.</span></li>
+                                                <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">2.</span><span>문서 내에 <strong className="font-bold">직접 삽입된 이미지</strong>만 크기 조절이 가능합니다.</span></li>
+                                                <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">3.</span><span>챕터별 기능을 사용하려면 <strong className="font-bold">제목 스타일</strong>을 적용해야 합니다.</span></li>
+                                            </ul>
+                                        </div>
+                                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-start">
+                                            <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center mr-3 flex-shrink-0"><ShieldCheck className="w-4 h-4 text-green-600" /></div>
+                                            <div><h4 className="font-bold text-gray-900 mb-0.5 text-xs">안전한 데이터 처리</h4><p className="text-[10px] text-gray-500 leading-tight">모든 이미지 처리는 사용자의 구글 드라이브 권한 내에서만 안전하게 수행됩니다.</p></div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition-all duration-300 ${isSummaryExpanded ? 'opacity-90 hover:opacity-100' : ''}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h2 className="text-base font-bold flex items-center"><FileText className="w-4 h-4 mr-2 text-indigo-500" />1. 문서 선택</h2>
+                                    <div className="flex items-center space-x-2">
+                                        <AnimatePresence>
+                                            {isLoaded && (
+                                                <motion.div key="sync-group" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center space-x-1.5 bg-gray-50/80 p-1 rounded-full border border-gray-100">
+                                                    <button onClick={() => syncDoc()} disabled={isSyncing} className={`text-[10px] flex items-center px-2 py-1 rounded-full font-bold transition-all ${isSyncing ? 'text-indigo-400 opacity-50' : 'bg-white hover:bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'}`} title={`마지막 동기화: ${lastSyncTime?.toLocaleTimeString() || '-'}`}>
+                                                        <RefreshCw className={`w-3 h-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+                                                        {isSyncing ? "동기화 중..." : "동기화"}
+                                                    </button>
+                                                    <button onClick={handleReset} className="text-[10px] flex items-center bg-white hover:bg-gray-100 text-gray-500 px-2 py-1 rounded-full border border-gray-100 transition-colors font-bold">다른 문서</button>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                        {structure && (<button onClick={() => setIsInputFolded(!isInputFolded)} className="p-1 hover:bg-gray-100 rounded text-gray-400"><ChevronUp className={`w-4 h-4 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} /></button>)}
+                                    </div>
+                                </div>
                                 <AnimatePresence>
-                                    {!isSummaryExpanded && !structure && (
-                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-3 mb-4">
-                                            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-900 shadow-sm relative overflow-hidden">
-                                                <div className="absolute top-0 right-0 p-2 opacity-5"><FileText className="w-16 h-16" /></div>
-                                                <h3 className="font-bold mb-2 flex items-center text-blue-800"><CheckCircle className="w-4 h-4 mr-2 text-blue-600" />시작하기 전에 확인해 주세요!</h3>
-                                                <ul className="space-y-1.5 pl-1 z-10 relative text-[11px] leading-relaxed">
-                                                    <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">1.</span><span>수정하려는 문서의 <strong className="font-bold">편집 권한</strong>이 있는지 확인해주세요.</span></li>
-                                                    <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">2.</span><span>문서 내에 <strong className="font-bold">직접 삽입된 이미지</strong>만 크기 조절이 가능합니다.</span></li>
-                                                    <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">3.</span><span>챕터별 기능을 사용하려면 <strong className="font-bold">제목 스타일</strong>을 적용해야 합니다.</span></li>
-                                                </ul>
-                                            </div>
-                                            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-start">
-                                                <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center mr-3 flex-shrink-0"><ShieldCheck className="w-4 h-4 text-green-600" /></div>
-                                                <div><h4 className="font-bold text-gray-900 mb-0.5 text-xs">안전한 데이터 처리</h4><p className="text-[10px] text-gray-500 leading-tight">모든 이미지 처리는 사용자의 구글 드라이브 권한 내에서만 안전하게 수행됩니다.</p></div>
+                                    {!isInputFolded && (
+                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                            <div className="space-y-4 pt-2">
+                                                <div>
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">문서 URL / ID</label>
+                                                    <div className="mt-1.5 relative">
+                                                        <input type="text" value={docUrl} onChange={handleUrlChange} placeholder="https://docs.google.com/document/d/..." className={`w-full pl-3 pr-8 py-2.5 rounded-xl border text-sm outline-none transition-all ${isUrlInvalid ? 'bg-red-50 border-red-200 focus:ring-red-100' : 'bg-gray-50 border-gray-100 focus:border-indigo-300'}`} />
+                                                        {docUrl && <button onClick={() => setDocUrl("")} className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">×</button>}
+                                                    </div>
+                                                </div>
+                                                <button onClick={fetchStructure} disabled={loading || !docUrl} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "문서 불러오기"}</button>
                                             </div>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
-
-                                {/* 1. Document Selection - Always available, but compact when expanded */}
-                                <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition-all duration-300 ${isSummaryExpanded ? 'opacity-90 hover:opacity-100' : ''}`}>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h2 className="text-base font-bold flex items-center"><FileText className="w-4 h-4 mr-2 text-indigo-500" />1. 문서 선택</h2>
-                                        <div className="flex items-center space-x-2">
-                                            <AnimatePresence>
-                                                {isLoaded && (
-                                                    <motion.div key="sync-group" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center space-x-1.5 bg-gray-50/80 p-1 rounded-full border border-gray-100">
-                                                        <button
-                                                            onClick={() => syncDoc()}
-                                                            disabled={isSyncing}
-                                                            className={`text-[10px] flex items-center px-2 py-1 rounded-full font-bold transition-all ${isSyncing ? 'text-indigo-400 opacity-50' : 'bg-white hover:bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'}`}
-                                                            title={`마지막 동기화: ${lastSyncTime?.toLocaleTimeString() || '-'}`}
-                                                        >
-                                                            <RefreshCw className={`w-3 h-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-                                                            {isSyncing ? "동기화 중..." : "동기화"}
-                                                        </button>
-                                                        <button onClick={handleReset} className="text-[10px] flex items-center bg-white hover:bg-gray-100 text-gray-500 px-2 py-1 rounded-full border border-gray-100 transition-colors font-bold">다른 문서</button>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                            {structure && (<button onClick={() => setIsInputFolded(!isInputFolded)} className="p-1 hover:bg-gray-100 rounded text-gray-400"><ChevronUp className={`w-4 h-4 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} /></button>)}
-                                        </div>
-                                    </div>
-                                    <AnimatePresence>
-                                        {!isInputFolded && (
-                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                                <div className="space-y-4 pt-2">
-                                                    <div>
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">문서 URL / ID</label>
-                                                        <div className="mt-1.5 relative">
-                                                            <input type="text" value={docUrl} onChange={handleUrlChange} placeholder="https://docs.google.com/document/d/..." className={`w-full pl-3 pr-8 py-2.5 rounded-xl border text-sm outline-none transition-all ${isUrlInvalid ? 'bg-red-50 border-red-200 focus:ring-red-100' : 'bg-gray-50 border-gray-100 focus:border-indigo-300'}`} />
-                                                            {docUrl && <button onClick={() => setDocUrl("")} className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">×</button>}
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={fetchStructure} disabled={loading || !docUrl} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "문서 불러오기"}</button>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                    {resultMsg && resizeStatus === 'error' && <div className="mt-4 p-3 rounded-lg text-sm flex items-center bg-red-50 text-red-700">{resultMsg}</div>}
-                                </div>
+                                {resultMsg && resizeStatus === 'error' && <div className="mt-4 p-3 rounded-lg text-sm flex items-center bg-red-50 text-red-700">{resultMsg}</div>}
                             </div>
-                        </AnimatePresence>
+                        </div>
 
                         {structure && (
                             <div className={`bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 flex flex-col space-y-3 sticky top-0 z-20 transition-all ${isSummaryExpanded ? 'opacity-90 hover:opacity-100 mt-2' : ''}`}>
@@ -534,114 +446,33 @@ export function Dashboard() {
                                     <button onClick={() => handleResize()} disabled={resizeStatus === "processing"} className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-[11px] shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2">
                                         {resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3 h-3" /><span>크기 조정</span></>}
                                     </button>
-                                    <div className="relative group">
-                                        <button
-                                            onClick={() => syncDoc()}
-                                            disabled={isSyncing}
-                                            className={`p-2 rounded-xl border transition-all ${isSyncing ? 'bg-gray-50 text-indigo-300 border-gray-100' : 'bg-white hover:bg-indigo-50 text-indigo-600 border-indigo-100 shadow-sm'}`}
-                                        >
-                                            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                                        </button>
-                                        {/* Tooltip */}
-                                        <div className="absolute bottom-full mb-2 right-0 hidden group-hover:block w-48 p-2.5 bg-gray-900/95 backdrop-blur-sm text-white text-[10px] leading-relaxed rounded-xl shadow-2xl z-50 pointer-events-none">
-                                            <div className="relative">
-                                                구글 문서에 이미지를 추가 / 삭제한 경우 동기화를 눌러 주세요.
-                                                <div className="absolute top-full mt-2 right-3 border-[6px] border-transparent border-t-gray-900/95" />
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Selected Items Summary Box */}
                         <AnimatePresence>
                             {structure && (selectedImageIds.length > 0 || selectedScopes.length > 0) && (
                                 <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }} className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mt-4 flex flex-col ${isSummaryExpanded ? 'min-h-[500px]' : 'max-h-[400px]'}`}>
                                     <div className="flex items-center justify-between mb-3 flex-shrink-0">
                                         <div className="flex items-center space-x-2">
                                             <h2 className="text-base font-bold flex items-center"><CheckCircle className="w-4 h-4 mr-2 text-green-500" />항목 요약</h2>
-                                            <div className="flex items-center space-x-1">
-                                                <button onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} className={`p-1.5 rounded-lg transition-all ${isSummaryExpanded ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`} title={isSummaryExpanded ? "기본 보기" : "길게 보기"}>{isSummaryExpanded ? <Columns className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}</button>
-
-                                                {/* Summary Level Bookmark Button */}
-                                                <div className="relative" ref={summaryBookmarkRef}>
-                                                    <button
-                                                        onClick={() => setShowSummaryBookmarkMenu(!showSummaryBookmarkMenu)}
-                                                        className={`p-1.5 rounded-lg transition-all ${showSummaryBookmarkMenu ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-600'}`}
-                                                        title="선택한 항목 북마크에 추가"
-                                                    >
-                                                        <FolderPlus className="w-3.5 h-3.5" />
-                                                    </button>
-
-                                                    <AnimatePresence>
-                                                        {showSummaryBookmarkMenu && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                                                className="absolute left-0 top-full mt-2 w-48 bg-white border border-indigo-100 rounded-2xl shadow-2xl z-[60] p-2 overflow-hidden"
-                                                            >
-                                                                <div className="px-2.5 py-2 text-[10px] font-black text-indigo-300 uppercase tracking-widest border-b border-indigo-50 mb-1.5">북마크 폴더 선택</div>
-                                                                {bookmarks.length === 0 ? (
-                                                                    <div className="px-2 py-4 text-center text-[11px] text-gray-400 font-medium">생성된 폴더가 없습니다.</div>
-                                                                ) : (
-                                                                    <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                                                                        {bookmarks.map(b => (
-                                                                            <button
-                                                                                key={b.id}
-                                                                                onClick={() => {
-                                                                                    if (selectedImageIds.length === 0) {
-                                                                                        alert("먼저 북마크에 추가할 이미지를 선택해 주세요.");
-                                                                                        return;
-                                                                                    }
-                                                                                    setBookmarks(prev => prev.map(f => f.id === b.id ? { ...f, imageIds: Array.from(new Set([...f.imageIds, ...selectedImageIds])) } : f));
-                                                                                    setShowSummaryBookmarkMenu(false);
-                                                                                    setSuccessMsg(`${b.name} 폴더에 ${selectedImageIds.length}개의 이미지를 추가했습니다.`);
-                                                                                    setShowSuccess(true);
-                                                                                }}
-                                                                                className="w-full text-left px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all flex items-center justify-between group"
-                                                                            >
-                                                                                <span className="flex items-center truncate mr-2"><Folder className="w-3.5 h-3.5 mr-2.5 text-indigo-400 group-hover:text-indigo-600 opacity-60 group-hover:opacity-100" />{b.name}</span>
-                                                                                <Plus className="w-3 h-3 text-indigo-300 opacity-0 group-hover:opacity-100" />
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                                <button
-                                                                    onClick={() => { setShowSummaryBookmarkMenu(false); setShowNewBookmarkModal(true); }}
-                                                                    className="w-full text-left px-3 py-2.5 text-xs font-black text-indigo-600 hover:bg-indigo-50 rounded-xl mt-1.5 border-t border-indigo-50 flex items-center pt-3"
-                                                                >
-                                                                    <Plus className="w-3.5 h-3.5 mr-2.5" />새 폴더 만들기
-                                                                </button>
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </div>
-                                            </div>
+                                            <button onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} className={`p-1.5 rounded-lg transition-all ${isSummaryExpanded ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`} title={isSummaryExpanded ? "기본 보기" : "길게 보기"}>{isSummaryExpanded ? <Columns className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}</button>
                                         </div>
                                         <button onClick={() => { setSelectedImageIds([]); setSelectedScopes([]); }} className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-tighter bg-gray-50 px-2 py-1 rounded-md transition-colors">전체 선택 해제</button>
                                     </div>
+
                                     <div id="summary-list" className={`flex-1 ${isSummaryExpanded ? 'overflow-visible' : 'overflow-y-auto'} pr-2 custom-scrollbar overscroll-contain space-y-4`}>
                                         {(() => {
                                             if (!structure || selectedImageIds.length === 0) return <div className="text-center py-24 text-gray-300"><ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-10" /><p className="text-sm font-bold">선택된 이미지가 없습니다.</p></div>;
 
-                                            // Determine visibility of each heading in the summary
                                             const isHeadingVisibleInSummary = (item: any) => {
-                                                // 1. Has selected images that "belong" here
-                                                const hasSelectedImages = item.images.some((img: any) =>
-                                                    selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id
-                                                );
+                                                const hasSelectedImages = item.images.some((img: any) => selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id);
                                                 if (hasSelectedImages) return true;
-
-                                                // 2. Has any descendant that is visible
                                                 const idx = structure.items.indexOf(item);
                                                 for (let i = idx + 1; i < structure.items.length; i++) {
                                                     const next = structure.items[i];
                                                     if (next.level > item.level) {
-                                                        const hasSelectedDescImages = next.images.some((img: any) =>
-                                                            selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === next.id
-                                                        );
+                                                        const hasSelectedDescImages = next.images.some((img: any) => selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === next.id);
                                                         if (hasSelectedDescImages) return true;
                                                     } else break;
                                                 }
@@ -650,11 +481,7 @@ export function Dashboard() {
 
                                             return structure.items.map((item: any) => {
                                                 if (!isHeadingVisibleInSummary(item)) return null;
-
-                                                const chapterImages = item.images.filter((img: any) =>
-                                                    selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id
-                                                );
-
+                                                const chapterImages = item.images.filter((img: any) => selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id);
                                                 const hierarchy = getImageHierarchy(item.images[0]?.id || "");
                                                 const isTopLevel = item.level <= 2;
 
@@ -666,9 +493,7 @@ export function Dashboard() {
                                                                 <div className="flex flex-col min-w-0">
                                                                     {hierarchy && hierarchy.length > 1 && !isTopLevel && (
                                                                         <div className="flex items-center space-x-1.5 opacity-60 mb-0.5">
-                                                                            <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded uppercase tracking-tighter">
-                                                                                {hierarchy[hierarchy.length - 2]}
-                                                                            </span>
+                                                                            <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded uppercase tracking-tighter">{hierarchy[hierarchy.length - 2]}</span>
                                                                             <ChevronRight className="w-2 h-2 text-indigo-300" />
                                                                         </div>
                                                                     )}
@@ -701,52 +526,28 @@ export function Dashboard() {
 
                     {/* Right Col: Outline / Content */}
                     <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block space-y-4`}>
-                        <div className="sticky top-[73px] z-40 bg-white/80 backdrop-blur-md rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3">
-                            {structure && (
-                                <>
-                                    <div className="flex items-center justify-between">
-                                        <h2 className="text-xs font-black flex items-center text-indigo-950 uppercase tracking-widest"><Archive className="w-3.5 h-3.5 mr-2 text-indigo-600" />3. 이미지 북마크</h2>
-                                        <button onClick={() => setShowNewBookmarkModal(true)} className="p-1 px-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors text-[10px] font-black flex items-center"><Plus className="w-3 h-3 mr-1" />폴더 추가</button>
+                        <div className="sticky top-[73px] z-40 bg-indigo-600 rounded-2xl p-6 shadow-xl shadow-indigo-200 overflow-hidden relative group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl transition-transform group-hover:scale-110" />
+                            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
+                                <div className="space-y-1">
+                                    <div className="flex items-center space-x-2">
+                                        <h2 className="text-white text-lg font-black tracking-tight">이미지 일괄 조절</h2>
+                                        <div className="px-1.5 py-0.5 bg-white/20 rounded text-[10px] font-black text-white uppercase tracking-widest leading-none">Settings</div>
                                     </div>
+                                    <p className="text-indigo-100 text-xs font-medium">선택한 모든 이미지의 너비를 한 번에 변경합니다.</p>
+                                </div>
 
-                                    {bookmarks.length === 0 ? (
-                                        <div className="py-4 bg-gray-50/50 border border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-400">
-                                            <p className="text-[9px] font-bold">이미지를 드래그해서 저장하세요.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {bookmarks.map(folder => (
-                                                <div
-                                                    key={folder.id}
-                                                    onDragOver={(e) => e.preventDefault()}
-                                                    onDrop={(e) => {
-                                                        const imgId = e.dataTransfer.getData("imageId") || draggedImageId;
-                                                        if (imgId) addImageToBookmark(folder.id, imgId);
-                                                        setDraggedImageId(null);
-                                                    }}
-                                                    onClick={() => setActiveBookmarkId(folder.id)}
-                                                    className={`group relative p-2 rounded-xl border-2 transition-all cursor-pointer hover:shadow-md ${activeBookmarkTab === folder.id ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-100 hover:border-indigo-200'}`}
-                                                >
-                                                    <div className="flex flex-col items-center space-y-1">
-                                                        <Folder className={`w-3.5 h-3.5 fill-current ${activeBookmarkTab === folder.id ? 'text-white' : 'text-indigo-500'} opacity-70`} />
-                                                        <div className="text-center overflow-hidden w-full">
-                                                            <div className={`text-[9px] font-black truncate ${activeBookmarkTab === folder.id ? 'text-white' : 'text-gray-900'}`}>{folder.name}</div>
-                                                            <div className={`text-[7px] font-bold ${activeBookmarkTab === folder.id ? 'text-indigo-100' : 'text-gray-400'}`}>{folder.imageIds.length}개</div>
-                                                        </div>
-                                                    </div>
-
-                                                    <button
-                                                        onClick={(e) => handleRemoveBookmark(folder.id, e)}
-                                                        className={`absolute -top-1 -right-1 w-4 h-4 bg-white border border-gray-100 text-gray-300 hover:text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm z-10`}
-                                                    >
-                                                        <Trash2 className="w-2 h-2" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                                <div className="flex items-center space-x-3">
+                                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-1.5 flex items-center space-x-2 border border-white/10">
+                                        <input type="range" min="3" max="20" step="0.5" value={targetWidth} onChange={(e) => setTargetWidth(parseFloat(e.target.value))} className="w-24 h-1.5 bg-indigo-300 rounded-lg appearance-none cursor-pointer accent-white" />
+                                        <span className="text-white font-black text-sm min-w-[3rem] text-center">{targetWidth}cm</span>
+                                    </div>
+                                    <button onClick={() => handleResize()} disabled={resizeStatus === 'processing'} className={`px-6 py-2.5 rounded-xl font-black text-xs transition-all flex items-center shadow-lg hover:-translate-y-0.5 active:translate-y-0 ${resizeStatus === 'processing' ? 'bg-indigo-400 text-white/50 cursor-not-allowed' : 'bg-white text-indigo-600 hover:bg-indigo-50'}`}>
+                                        {resizeStatus === 'processing' ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                                        크기 조정 시작
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         {structure ? (
@@ -779,7 +580,6 @@ export function Dashboard() {
                                                 </div>
                                                 {viewMode === 'grid' && (
                                                     <div className="flex items-center space-x-1 pl-4">
-                                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mr-2">열 개수</span>
                                                         {[1, 2, 3, 4, 5].map(num => (<button key={num} onClick={() => setGridCols(num)} className={`w-6 h-6 rounded-md text-[10px] font-black transition-all ${gridCols === num ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-100'}`}>{num}</button>))}
                                                     </div>
                                                 )}
@@ -804,10 +604,7 @@ export function Dashboard() {
                                                     return (
                                                         <div className="space-y-8">
                                                             {subItems.map(item => {
-                                                                const filteredImages = item.images.filter((img: any) =>
-                                                                    imageToHeadingMap[img.uri] === item.id
-                                                                );
-
+                                                                const filteredImages = item.images.filter((img: any) => imageToHeadingMap[img.uri] === item.id);
                                                                 return (
                                                                     <div key={item.id} id={`detail-heading-${item.id}`} className="space-y-4 pt-4">
                                                                         <div className="flex items-center space-x-2 border-b border-gray-50 pb-2">
@@ -820,20 +617,11 @@ export function Dashboard() {
                                                                                     const isImgSelected = selectedImageIds.includes(img.id);
                                                                                     const originalIdx = item.images.findIndex((i: any) => i.id === img.id);
                                                                                     return (
-                                                                                        <div key={img.id}
-                                                                                            draggable
-                                                                                            onDragStart={(e) => {
-                                                                                                setDraggedImageId(img.id);
-                                                                                                e.dataTransfer.setData("imageId", img.id);
-                                                                                            }}
-                                                                                            onClick={() => {
-                                                                                                if (isImgSelected) {
-                                                                                                    setSelectedImageIds(prev => prev.filter(id => id !== img.id));
-                                                                                                } else {
-                                                                                                    setSelectedImageIds(prev => [...prev, img.id]);
-                                                                                                }
-                                                                                                scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
-                                                                                            }} className={`group relative bg-white rounded-2xl overflow-hidden border-2 transition-all cursor-pointer shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 ${isImgSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-indigo-100' : 'border-gray-100 hover:border-indigo-200'}`}>
+                                                                                        <div key={img.id} onClick={() => {
+                                                                                            if (isImgSelected) setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                                            else setSelectedImageIds(prev => [...prev, img.id]);
+                                                                                            scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
+                                                                                        }} className={`group relative bg-white rounded-2xl overflow-hidden border-2 transition-all cursor-pointer shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 ${isImgSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-indigo-100' : 'border-gray-100 hover:border-indigo-200'}`}>
                                                                                             <div className="relative aspect-video flex items-center justify-center p-3">
                                                                                                 <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
                                                                                                 <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
@@ -864,11 +652,8 @@ export function Dashboard() {
                                                             <div className="relative aspect-video bg-gray-50 rounded-3xl border border-gray-100 flex items-center justify-center p-8 overflow-hidden group">
                                                                 <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] opacity-30" /><motion.img key={activeImg.id} src={activeImg.uri} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-h-full max-w-full relative z-10 rounded-xl shadow-2xl" />
                                                                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20"><button onClick={() => {
-                                                                    if (isActiveSelected) {
-                                                                        setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
-                                                                    } else {
-                                                                        setSelectedImageIds(prev => [...prev, activeImg.id]);
-                                                                    }
+                                                                    if (isActiveSelected) setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
+                                                                    else setSelectedImageIds(prev => [...prev, activeImg.id]);
                                                                     scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
                                                                 }} className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border shadow-sm'}`}>{isActiveSelected ? "선택 해제" : "현재 이미지 선택"}</button></div>
                                                             </div>
@@ -916,7 +701,6 @@ export function Dashboard() {
                                                                     const newScopes = itemsToSync.map(toScope);
                                                                     setSelectedScopes(prev => { const existingStarts = new Set(newScopes.map(s => s.start)); const cleanPrev = prev.filter(s => !existingStarts.has(s.start)); return [...cleanPrev, ...newScopes]; });
                                                                     setSelectedImageIds(prev => Array.from(new Set([...prev, ...allImageIds])));
-
                                                                     scrollToElement(`summary-heading-${item.id}`, 'summary-list');
                                                                 }
                                                             }} className={`w-4 h-4 mr-4 flex-shrink-0 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>{isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}</div>
@@ -943,126 +727,6 @@ export function Dashboard() {
                     </div>
                 </div>
             </main>
-
-            {/* New Bookmark Modal */}
-            <AnimatePresence>
-                {showNewBookmarkModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowNewBookmarkModal(false)} className="absolute inset-0 bg-indigo-950/40 backdrop-blur-sm" />
-                        <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl border border-white">
-                            <div className="p-8 pb-6">
-                                <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6"><FolderPlus className="w-7 h-7 text-indigo-600" /></div>
-                                <h3 className="text-xl font-black text-gray-900 mb-2">새 북마크 폴더</h3>
-                                <p className="text-sm text-gray-500 leading-relaxed font-medium">이미지 크기를 얼만큼으로 만들고 싶으세요?</p>
-                                <div className="mt-8 relative">
-                                    <input autoFocus type="number" min="5" max="20" value={newBookmarkWidthInput} onChange={(e) => setNewBookmarkWidthInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateBookmark()} placeholder="5 ~ 20 (cm)" className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 text-2xl font-black text-indigo-600 outline-none focus:border-indigo-500 transition-all placeholder:text-gray-200" />
-                                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-lg font-black text-gray-300">cm</span>
-                                </div>
-                            </div>
-                            <div className="p-2 flex space-x-2 bg-gray-50/50">
-                                <button onClick={() => setShowNewBookmarkModal(false)} className="flex-1 py-4 text-xs font-black text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-widest">취소</button>
-                                <button onClick={handleCreateBookmark} className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black shadow-xl shadow-indigo-200 transition-all uppercase tracking-widest">폴더 생성</button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Bookmark Detail Viewer */}
-            <AnimatePresence>
-                {activeBookmarkId && (
-                    <div className="fixed inset-0 z-[90] flex items-center justify-center p-6 md:p-12">
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveBookmarkId(null)} className="absolute inset-0 bg-gray-950/60 backdrop-blur-md" />
-                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 40 }} className="relative bg-white w-full max-w-5xl h-full max-h-[85vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-white/20">
-                            {/* Header */}
-                            {(() => {
-                                const folder = bookmarks.find(b => b.id === activeBookmarkId);
-                                if (!folder) return null;
-                                return (
-                                    <>
-                                        <div className="p-6 md:p-8 flex items-center justify-between border-b border-gray-50">
-                                            <div className="flex items-center space-x-4">
-                                                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200"><Folder className="w-6 h-6 text-white" /></div>
-                                                <div>
-                                                    <h3 className="text-xl font-black text-gray-950">{folder.name} 북마크</h3>
-                                                    <p className="text-xs font-bold text-gray-400 flex items-center"><ImageIcon className="w-3 h-3 mr-1" />{folder.imageIds.length}개의 이미지 보관 중</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center space-x-3">
-                                                <button onClick={() => {
-                                                    setTargetWidth(folder.targetWidth);
-                                                    setSelectedImageIds(folder.imageIds);
-                                                    setActiveBookmarkTab(folder.id);
-                                                    setActiveBookmarkId(null);
-                                                    handleResize({ width: folder.targetWidth, imageIds: folder.imageIds });
-                                                }} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xl shadow-indigo-100 transition-all flex items-center"><RefreshCw className="w-3.5 h-3.5 mr-2" />전체를 {folder.name}로 수정하기</button>
-                                                <button onClick={() => setActiveBookmarkId(null)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl transition-all">×</button>
-                                            </div>
-                                        </div>
-                                        {/* Content - Heirarchy Based Like 항목 요약 */}
-                                        <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar bg-gray-50/30">
-                                            {folder.imageIds.length === 0 ? (
-                                                <div className="h-full flex flex-col items-center justify-center text-gray-300">
-                                                    <Archive className="w-16 h-16 mb-4 opacity-10" />
-                                                    <p className="text-sm font-bold">북마크에 저장된 이미지가 없습니다.</p>
-                                                    <p className="text-[10px] mt-1 font-medium">오른쪽 화면에서 이미지를 끌어와서 넣어주세요.</p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-6">
-                                                    {structure.items.map((item: any) => {
-                                                        const folderImages = item.images.filter((img: any) =>
-                                                            folder.imageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id
-                                                        );
-                                                        if (folderImages.length === 0) return null;
-                                                        const hierarchy = getImageHierarchy(folderImages[0].id);
-                                                        return (
-                                                            <div key={item.id} className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
-                                                                <div className="flex items-center justify-between">
-                                                                    <div className="flex items-center space-x-3">
-                                                                        <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
-                                                                        <div>
-                                                                            {hierarchy && hierarchy.length > 1 && (
-                                                                                <div className="flex items-center space-x-1 opacity-40 mb-0.5">
-                                                                                    <span className="text-[9px] font-black uppercase text-indigo-500">{hierarchy[0]}</span>
-                                                                                    {hierarchy.length > 2 && <ChevronRight className="w-2.5 h-2.5" />}
-                                                                                </div>
-                                                                            )}
-                                                                            <h4 className="font-black text-sm text-indigo-950 uppercase tracking-tight">{item.title}</h4>
-                                                                        </div>
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const idsToRemove = folderImages.map((img: any) => img.id);
-                                                                            setBookmarks(prev => prev.map(b => b.id === folder.id ? { ...b, imageIds: b.imageIds.filter(id => !idsToRemove.includes(id)) } : b));
-                                                                        }}
-                                                                        className="text-[10px] font-black text-gray-300 hover:text-red-500 transition-colors uppercase tracking-widest"
-                                                                    >전체 제외</button>
-                                                                </div>
-                                                                <div className="grid grid-cols-4 md:grid-cols-6 gap-4">
-                                                                    {folderImages.map((img: any) => (
-                                                                        <div key={img.id} className="group relative aspect-square bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
-                                                                            <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
-                                                                            <button onClick={() => {
-                                                                                setBookmarks(prev => prev.map(b => b.id === folder.id ? { ...b, imageIds: b.imageIds.filter(id => id !== img.id) } : b));
-                                                                            }} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                                <div className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded shadow-lg transform scale-0 group-hover:scale-100 transition-transform">제외</div>
-                                                                            </button>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </>
-                                );
-                            })()}
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }
