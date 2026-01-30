@@ -297,30 +297,33 @@ export const calculateImageResizeRequests = (
     });
 
     const requests: any[] = [];
-    const originalIds: string[] = []; // Track which original ID each insert request corresponds to (only for insertions)
+    const originalIds: string[] = [];
 
     actions.forEach(action => {
         if (action.type === 'inline') {
-            // OPTIMIZED: Use update instead of delete/insert for normal inline images
-            // This is safer, doesn't shift indexes, and preserves the ID.
+            // 1. Delete Old Image first
             requests.push({
-                updateInlineObjectProperties: {
-                    objectId: action.id,
-                    inlineObjectProperties: {
-                        embeddedObject: {
-                            size: {
-                                width: { magnitude: action.width, unit: 'PT' },
-                                height: { magnitude: action.height, unit: 'PT' }
-                            }
-                        }
-                    },
-                    fields: 'embeddedObject.size'
+                deleteContentRange: {
+                    range: {
+                        startIndex: action.index,
+                        endIndex: action.index + 1
+                    }
                 }
             });
-            // NO originalIds.push needed here because the ID remains the same.
+            // 2. Insert New Image at the SAME index
+            requests.push({
+                insertInlineImage: {
+                    uri: action.uri,
+                    location: { index: action.index },
+                    objectSize: {
+                        width: { magnitude: action.width, unit: 'PT' },
+                        height: { magnitude: action.height, unit: 'PT' }
+                    }
+                }
+            });
+            originalIds.push(action.id);
         } else if (action.type === 'positioned') {
-            // Positioned (floating) objects still need to be deleted and re-inserted as inline
-            // if we want them to follow the document flow like other images.
+            // Positioned objects: Delete + Insert Inline
             requests.push({
                 deletePositionedObject: {
                     objectId: action.id

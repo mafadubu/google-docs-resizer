@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         }
 
         // 3. Batch Update in smaller Chunks with retries to avoid "Internal error"
-        const CHUNK_SIZE = 20; // 10 images at a time (much safer)
+        const CHUNK_SIZE = 10; // 5 images (10 requests) at a time - VERY conservative for stability
         const newIdMapping: Record<string, string> = {};
         let totalInsertCount = 0;
 
@@ -75,25 +75,22 @@ export async function POST(req: Request) {
                     // Success! Break retry loop
                     break;
                 } catch (chunkError: any) {
-                    const isInternalError = chunkError.message?.includes("Internal error") || chunkError.code === 500;
-                    if (isInternalError && retryCount < MAX_RETRIES) {
+                    const isRetryable = chunkError.message?.includes("Internal error") || chunkError.code === 500 || chunkError.message?.includes("Invalid JSON payload");
+                    if (isRetryable && retryCount < MAX_RETRIES) {
                         retryCount++;
-                        console.warn(`Internal error on chunk ${i}, retrying (${retryCount}/${MAX_RETRIES})...`);
-                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+                        console.warn(`Error on chunk ${i}, retrying (${retryCount}/${MAX_RETRIES})...`);
+                        await new Promise(resolve => setTimeout(resolve, 1500 * retryCount)); // Exponential backoff
                         continue;
                     }
 
                     console.error(`Final failure at chunk index ${i}:`, chunkError);
-                    if (chunkError.response?.data) {
-                        console.error("Error data:", JSON.stringify(chunkError.response.data, null, 2));
-                    }
                     throw chunkError;
                 }
             }
 
             // More generous delay between chunks
             if (i + CHUNK_SIZE < requests.length) {
-                await new Promise(resolve => setTimeout(resolve, 200));
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
         }
 
