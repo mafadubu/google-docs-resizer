@@ -299,21 +299,47 @@ export const calculateImageResizeRequests = (
     const originalIds: string[] = [];
 
     actions.forEach(action => {
-        // CORRECTED: The field 'size' is directly inside 'embeddedObjectProperties'.
-        // This follows the official Google Docs API v1 specification.
-        requests.push({
-            updateEmbeddedObjectProperties: {
-                objectId: action.id,
-                embeddedObjectProperties: {
-                    size: {
+        if (action.type === 'inline') {
+            // ROBUST METHOD: Delete the 1-char range and insert a new image with the target size.
+            // This bypasses property update issues and handles all object types reliably.
+            requests.push({
+                deleteContentRange: {
+                    range: {
+                        startIndex: action.index,
+                        endIndex: action.index + 1
+                    }
+                }
+            });
+            requests.push({
+                insertInlineImage: {
+                    uri: action.uri,
+                    location: { index: action.index },
+                    objectSize: {
                         width: { magnitude: action.width, unit: 'PT' },
                         height: { magnitude: action.height, unit: 'PT' }
                     }
-                },
-                fields: 'size'
-            }
-        });
+                }
+            });
+            originalIds.push(action.id);
+        } else if (action.type === 'positioned') {
+            requests.push({
+                deletePositionedObject: {
+                    objectId: action.id
+                }
+            });
+            requests.push({
+                insertInlineImage: {
+                    uri: action.uri,
+                    location: { index: action.anchorIndex },
+                    objectSize: {
+                        width: { magnitude: action.width, unit: 'PT' },
+                        height: { magnitude: action.height, unit: 'PT' }
+                    }
+                }
+            });
+            originalIds.push(action.id);
+        }
     });
 
-    return { requests, originalIds: [] };
+    return { requests, originalIds };
 };

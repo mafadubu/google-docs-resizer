@@ -532,24 +532,38 @@ export function Dashboard() {
                                     {!activeChapterId ? (
                                         <div className="py-5"><h2 className="text-base font-black text-gray-900 truncate leading-tight">{structure.title}</h2><p className="text-[11px] text-gray-500 mt-1">상세 조절을 위해 아래 챕터를 선택해 주세요.</p></div>
                                     ) : (
-                                        <div className="divide-y divide-gray-50">
-                                            <div className="grid grid-cols-[auto_1fr_auto] items-center py-3 gap-3 px-1">
-                                                <button onClick={handleBackToOutline} className="flex-shrink-0 flex items-center px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all text-[11px] font-black"><ChevronLeft className="w-3.5 h-3.5 mr-1" />목차로</button>
-                                                <div className="min-w-0 text-center"><h3 className="text-sm font-black text-gray-900 truncate px-4">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3></div>
-                                                <button onClick={() => {
-                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                    if (!currentChapter) return;
-                                                    const allIds = currentChapter.images.map((img: any) => img.id);
-                                                    const areAllSelected = allIds.every((id: string) => selectedImageIds.includes(id));
-                                                    if (areAllSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
-                                                    else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
-                                                }} className="flex-shrink-0 text-[11px] font-black text-indigo-500 hover:text-indigo-700 px-4 py-2 bg-indigo-50/50 rounded-xl transition-all">{(() => {
-                                                    const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                    const allIds = currentChapter?.images.map((img: any) => img.id) || [];
-                                                    return allIds.every((id: string) => selectedImageIds.includes(id)) ? "전체 해제" : "전체 선택";
-                                                })()}</button>
+                                        <div className="divide-y divide-gray-50 bg-white">
+                                            <div className="flex items-center justify-between py-3 px-4 gap-2 h-[60px] relative">
+                                                {/* Version Marker for verification */}
+                                                <div className="absolute top-1 right-1 w-1 h-1 bg-green-400 rounded-full opacity-50" title="v3.1 Refreshed" />
+
+                                                <div className="w-[80px] flex-shrink-0">
+                                                    <button onClick={handleBackToOutline} className="flex items-center justify-center w-full py-2 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-all text-[11px] font-black border border-slate-100"><ChevronLeft className="w-3.5 h-3.5 mr-0.5" />목차</button>
+                                                </div>
+
+                                                <div className="flex-1 min-w-0 text-center flex flex-col justify-center">
+                                                    <h3 className="text-[13px] font-black text-gray-900 truncate px-1">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3>
+                                                    <span className="text-[9px] text-indigo-400 font-bold leading-none mt-0.5 uppercase tracking-widest opacity-70">챕터 상세 편집</span>
+                                                </div>
+
+                                                <div className="w-[80px] flex-shrink-0 flex justify-end">
+                                                    <button onClick={() => {
+                                                        const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                        if (!currentChapter) return;
+                                                        const allIds = currentChapter.images.map((img: any) => img.id);
+                                                        const areAllSelected = allIds.every((id: string) => selectedImageIds.includes(id));
+                                                        if (areAllSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
+                                                        else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
+                                                    }} className="flex items-center justify-center w-full py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all text-[11px] font-black shadow-sm shadow-indigo-100 tracking-tighter">
+                                                        {(() => {
+                                                            const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                            const allIds = currentChapter?.images.map((img: any) => img.id) || [];
+                                                            return allIds.every((id: string) => selectedImageIds.includes(id)) ? "전체 해제" : "전체 선택";
+                                                        })()}
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center justify-between py-2.5">
+                                            <div className="flex items-center justify-between py-2.5 px-4 bg-gray-50/30">
                                                 <div className="flex items-center bg-gray-100/50 rounded-xl p-1">
                                                     <button onClick={() => setViewMode('grid')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Grid3X3 className="w-3.5 h-3.5 mr-1.5" />그리드</button>
                                                     <button onClick={() => setViewMode('carousel')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Maximize2 className="w-3.5 h-3.5 mr-1.5" />캐러셀</button>
