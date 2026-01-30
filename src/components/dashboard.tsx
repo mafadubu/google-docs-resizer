@@ -191,13 +191,16 @@ export function Dashboard() {
     };
 
     const handleReset = () => {
+        if (structure && !confirm("현재 선택 및 작업 내용이 초기화됩니다. 처음으로 돌아가시겠습니까?")) return;
         setIsLoaded(false);
         setIsInputFolded(false);
         setDocUrl("");
+        setStructure(null);
         setResizeStatus("idle");
         setResultMsg("");
         setIsUrlInvalid(false);
         setWarningMsg("");
+        setIsSummaryExpanded(false);
     };
 
     const syncDoc = async (silent = false) => {
@@ -334,7 +337,7 @@ export function Dashboard() {
                 {showWarning && <WarningModal isOpen={showWarning} onClose={() => setShowWarning(false)} message={warningMsg} />}
             </AnimatePresence>
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-                <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => { activeChapterId ? handleBackToOutline() : window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                <div className="flex items-center space-x-3 cursor-pointer group" onClick={handleReset}>
                     <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">G</div>
                     <span className="font-bold text-lg tracking-tight group-hover:text-indigo-600 transition-colors">Docs Resizer ✨</span>
                 </div>
@@ -365,10 +368,11 @@ export function Dashboard() {
                     {/* Left Col: Setup - Sticky Sidebar */}
                     <div id="sidebar-container" className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-4'} space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain`}>
                         <AnimatePresence>
-                            {!isSummaryExpanded && (
-                                <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }} className="space-y-4">
-                                    {!structure && (
-                                        <div className="space-y-3">
+                            <div className="space-y-4">
+                                {/* Tips - Only show when NOT expanded and NO structure */}
+                                <AnimatePresence>
+                                    {!isSummaryExpanded && !structure && (
+                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-3 mb-4">
                                             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-900 shadow-sm relative overflow-hidden">
                                                 <div className="absolute top-0 right-0 p-2 opacity-5"><FileText className="w-16 h-16" /></div>
                                                 <h3 className="font-bold mb-2 flex items-center text-blue-800"><CheckCircle className="w-4 h-4 mr-2 text-blue-600" />시작하기 전에 확인해 주세요!</h3>
@@ -382,55 +386,57 @@ export function Dashboard() {
                                                 <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center mr-3 flex-shrink-0"><ShieldCheck className="w-4 h-4 text-green-600" /></div>
                                                 <div><h4 className="font-bold text-gray-900 mb-0.5 text-xs">안전한 데이터 처리</h4><p className="text-[10px] text-gray-500 leading-tight">모든 이미지 처리는 사용자의 구글 드라이브 권한 내에서만 안전하게 수행됩니다.</p></div>
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     )}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h2 className="text-base font-bold flex items-center"><FileText className="w-4 h-4 mr-2 text-indigo-500" />1. 문서 선택</h2>
-                                            <div className="flex items-center space-x-2">
-                                                <AnimatePresence>
-                                                    {isLoaded && (
-                                                        <motion.div key="sync-group" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center space-x-1.5 bg-gray-50/80 p-1 rounded-full border border-gray-100">
-                                                            <button
-                                                                onClick={() => syncDoc()}
-                                                                disabled={isSyncing}
-                                                                className={`text-[10px] flex items-center px-2 py-1 rounded-full font-bold transition-all ${isSyncing ? 'text-indigo-400 opacity-50' : 'bg-white hover:bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'}`}
-                                                                title={`마지막 동기화: ${lastSyncTime?.toLocaleTimeString() || '-'}`}
-                                                            >
-                                                                <RefreshCw className={`w-3 h-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-                                                                {isSyncing ? "동기화 중..." : "동기화"}
-                                                            </button>
-                                                            <button onClick={handleReset} className="text-[10px] flex items-center bg-white hover:bg-gray-100 text-gray-500 px-2 py-1 rounded-full border border-gray-100 transition-colors font-bold">다른 문서</button>
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                                {structure && (<button onClick={() => setIsInputFolded(!isInputFolded)} className="p-1 hover:bg-gray-100 rounded text-gray-400"><ChevronUp className={`w-4 h-4 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} /></button>)}
-                                            </div>
+                                </AnimatePresence>
+
+                                {/* 1. Document Selection - Always available, but compact when expanded */}
+                                <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition-all duration-300 ${isSummaryExpanded ? 'opacity-90 hover:opacity-100' : ''}`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h2 className="text-base font-bold flex items-center"><FileText className="w-4 h-4 mr-2 text-indigo-500" />1. 문서 선택</h2>
+                                        <div className="flex items-center space-x-2">
+                                            <AnimatePresence>
+                                                {isLoaded && (
+                                                    <motion.div key="sync-group" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center space-x-1.5 bg-gray-50/80 p-1 rounded-full border border-gray-100">
+                                                        <button
+                                                            onClick={() => syncDoc()}
+                                                            disabled={isSyncing}
+                                                            className={`text-[10px] flex items-center px-2 py-1 rounded-full font-bold transition-all ${isSyncing ? 'text-indigo-400 opacity-50' : 'bg-white hover:bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'}`}
+                                                            title={`마지막 동기화: ${lastSyncTime?.toLocaleTimeString() || '-'}`}
+                                                        >
+                                                            <RefreshCw className={`w-3 h-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+                                                            {isSyncing ? "동기화 중..." : "동기화"}
+                                                        </button>
+                                                        <button onClick={handleReset} className="text-[10px] flex items-center bg-white hover:bg-gray-100 text-gray-500 px-2 py-1 rounded-full border border-gray-100 transition-colors font-bold">다른 문서</button>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                            {structure && (<button onClick={() => setIsInputFolded(!isInputFolded)} className="p-1 hover:bg-gray-100 rounded text-gray-400"><ChevronUp className={`w-4 h-4 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} /></button>)}
                                         </div>
-                                        <AnimatePresence>
-                                            {!isInputFolded && (
-                                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                                    <div className="space-y-4 pt-2">
-                                                        <div>
-                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">문서 URL / ID</label>
-                                                            <div className="mt-1.5 relative">
-                                                                <input type="text" value={docUrl} onChange={handleUrlChange} placeholder="https://docs.google.com/document/d/..." className={`w-full pl-3 pr-8 py-2.5 rounded-xl border text-sm outline-none transition-all ${isUrlInvalid ? 'bg-red-50 border-red-200 focus:ring-red-100' : 'bg-gray-50 border-gray-100 focus:border-indigo-300'}`} />
-                                                                {docUrl && <button onClick={() => setDocUrl("")} className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">×</button>}
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={fetchStructure} disabled={loading || !docUrl} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "문서 불러오기"}</button>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
                                     </div>
+                                    <AnimatePresence>
+                                        {!isInputFolded && (
+                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                                <div className="space-y-4 pt-2">
+                                                    <div>
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">문서 URL / ID</label>
+                                                        <div className="mt-1.5 relative">
+                                                            <input type="text" value={docUrl} onChange={handleUrlChange} placeholder="https://docs.google.com/document/d/..." className={`w-full pl-3 pr-8 py-2.5 rounded-xl border text-sm outline-none transition-all ${isUrlInvalid ? 'bg-red-50 border-red-200 focus:ring-red-100' : 'bg-gray-50 border-gray-100 focus:border-indigo-300'}`} />
+                                                            {docUrl && <button onClick={() => setDocUrl("")} className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">×</button>}
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={fetchStructure} disabled={loading || !docUrl} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "문서 불러오기"}</button>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                     {resultMsg && resizeStatus === 'error' && <div className="mt-4 p-3 rounded-lg text-sm flex items-center bg-red-50 text-red-700">{resultMsg}</div>}
-                                </motion.div>
-                            )}
+                                </div>
+                            </div>
                         </AnimatePresence>
 
                         {structure && (
-                            <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 flex flex-col space-y-3 sticky top-0 z-20">
+                            <div className={`bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 flex flex-col space-y-3 sticky top-0 z-20 transition-all ${isSummaryExpanded ? 'opacity-90 hover:opacity-100 mt-2' : ''}`}>
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-sm font-bold flex items-center text-gray-800"><Layout className="w-3.5 h-3.5 mr-1.5 text-indigo-500" />2. 환경 설정</h2>
                                     <div className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg font-mono font-black text-xl shadow-inner border border-indigo-100 flex items-center justify-center min-w-[70px]">{targetWidth}<span className="text-[10px] ml-0.5 opacity-50 font-sans">cm</span></div>
