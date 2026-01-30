@@ -121,20 +121,34 @@ export function Dashboard() {
 
             // 2. Element found
             if (el) {
-                // If it's summary list, align to TOP (with offset) like it's sticking to the menu
+                // If it's summary list, we need to decide whether to scroll the internal list or the sidebar
                 if (containerId === 'summary-list') {
-                    const container = document.getElementById(containerId);
-                    if (container && container.scrollHeight > container.clientHeight) {
-                        const rect = el.getBoundingClientRect();
-                        const containerRect = container.getBoundingClientRect();
-                        const targetTop = container.scrollTop + (rect.top - containerRect.top) - 8;
-                        container.scrollTo({ top: targetTop, behavior: 'smooth' });
+                    const sidebar = document.getElementById('sidebar-container');
+                    const internalList = document.getElementById('summary-list');
+
+                    if (isSummaryExpanded && sidebar) {
+                        // In expanded mode, the sidebar itself is the scroll container
+                        const elRect = el.getBoundingClientRect();
+                        const sidebarRect = sidebar.getBoundingClientRect();
+
+                        // Find the sticky header height to avoid overlap
+                        const stickyHeader = sidebar.querySelector('.sticky');
+                        const headerOffset = stickyHeader ? stickyHeader.getBoundingClientRect().height : 100;
+
+                        const targetTop = sidebar.scrollTop + (elRect.top - sidebarRect.top) - headerOffset - 20;
+                        sidebar.scrollTo({ top: targetTop, behavior: 'smooth' });
+                    } else if (internalList && internalList.scrollHeight > internalList.clientHeight) {
+                        // In compact mode, the internal list is the scroll container
+                        const elRect = el.getBoundingClientRect();
+                        const listRect = internalList.getBoundingClientRect();
+                        const targetTop = internalList.scrollTop + (elRect.top - listRect.top) - 8;
+                        internalList.scrollTo({ top: targetTop, behavior: 'smooth' });
                     }
                 } else {
                     // Standard scrollIntoView for other cases (like detail view)
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
-            } else if (retryCount < 8) {
+            } else if (retryCount < 10) {
                 // 3. Keep trying (Useful when summary box is mounting for the first time)
                 setTimeout(() => tryScroll(retryCount + 1), 100);
             }
@@ -349,7 +363,7 @@ export function Dashboard() {
                 <AnimatePresence>{showSuccess && <SuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} message={successMsg} />}</AnimatePresence>
                 <div className="grid md:grid-cols-12 gap-8">
                     {/* Left Col: Setup - Sticky Sidebar */}
-                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-4'} space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain`}>
+                    <div id="sidebar-container" className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-4'} space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain`}>
                         <AnimatePresence>
                             {!isSummaryExpanded && (
                                 <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }} className="space-y-4">
@@ -460,7 +474,7 @@ export function Dashboard() {
                                         </div>
                                         <button onClick={() => { setSelectedImageIds([]); setSelectedScopes([]); }} className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-tighter bg-gray-50 px-2 py-1 rounded-md transition-colors">전체 선택 해제</button>
                                     </div>
-                                    <div id="summary-list" className={`flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4`}>
+                                    <div id="summary-list" className={`flex-1 ${isSummaryExpanded ? 'overflow-visible' : 'overflow-y-auto'} pr-2 custom-scrollbar overscroll-contain space-y-4`}>
                                         {(() => {
                                             if (!structure || selectedImageIds.length === 0) return <div className="text-center py-24 text-gray-300"><ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-10" /><p className="text-sm font-bold">선택된 이미지가 없습니다.</p></div>;
 
