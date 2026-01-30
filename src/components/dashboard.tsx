@@ -90,6 +90,25 @@ export function Dashboard() {
         }));
     };
 
+    const [showSummaryBookmarkMenu, setShowSummaryBookmarkMenu] = useState(false);
+
+    const summaryBookmarkRef = React.useRef<HTMLDivElement>(null);
+
+    // Click outside handler for summary bookmark menu
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (summaryBookmarkRef.current && !summaryBookmarkRef.current.contains(event.target as Node)) {
+                setShowSummaryBookmarkMenu(false);
+            }
+        }
+        if (showSummaryBookmarkMenu) {
+            document.addEventListener("mousedown", handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [showSummaryBookmarkMenu]);
+
     const handleCreateBookmark = () => {
         const width = parseFloat(newBookmarkWidthInput);
         if (isNaN(width) || width < 5 || width > 20) {
@@ -529,7 +548,64 @@ export function Dashboard() {
                                     <div className="flex items-center justify-between mb-3 flex-shrink-0">
                                         <div className="flex items-center space-x-2">
                                             <h2 className="text-base font-bold flex items-center"><CheckCircle className="w-4 h-4 mr-2 text-green-500" />항목 요약</h2>
-                                            <button onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} className={`p-1.5 rounded-lg transition-all ${isSummaryExpanded ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`} title={isSummaryExpanded ? "기본 보기" : "길게 보기"}>{isSummaryExpanded ? <Columns className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}</button>
+                                            <div className="flex items-center space-x-1">
+                                                <button onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} className={`p-1.5 rounded-lg transition-all ${isSummaryExpanded ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`} title={isSummaryExpanded ? "기본 보기" : "길게 보기"}>{isSummaryExpanded ? <Columns className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}</button>
+
+                                                {/* Summary Level Bookmark Button */}
+                                                <div className="relative" ref={summaryBookmarkRef}>
+                                                    <button
+                                                        onClick={() => setShowSummaryBookmarkMenu(!showSummaryBookmarkMenu)}
+                                                        className={`p-1.5 rounded-lg transition-all ${showSummaryBookmarkMenu ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-600'}`}
+                                                        title="선택한 항목 북마크에 추가"
+                                                    >
+                                                        <FolderPlus className="w-3.5 h-3.5" />
+                                                    </button>
+
+                                                    <AnimatePresence>
+                                                        {showSummaryBookmarkMenu && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                                                className="absolute left-0 top-full mt-2 w-48 bg-white border border-indigo-100 rounded-2xl shadow-2xl z-[60] p-2 overflow-hidden"
+                                                            >
+                                                                <div className="px-2.5 py-2 text-[10px] font-black text-indigo-300 uppercase tracking-widest border-b border-indigo-50 mb-1.5">북마크 폴더 선택</div>
+                                                                {bookmarks.length === 0 ? (
+                                                                    <div className="px-2 py-4 text-center text-[11px] text-gray-400 font-medium">생성된 폴더가 없습니다.</div>
+                                                                ) : (
+                                                                    <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                                                        {bookmarks.map(b => (
+                                                                            <button
+                                                                                key={b.id}
+                                                                                onClick={() => {
+                                                                                    if (selectedImageIds.length === 0) {
+                                                                                        alert("먼저 북마크에 추가할 이미지를 선택해 주세요.");
+                                                                                        return;
+                                                                                    }
+                                                                                    setBookmarks(prev => prev.map(f => f.id === b.id ? { ...f, imageIds: Array.from(new Set([...f.imageIds, ...selectedImageIds])) } : f));
+                                                                                    setShowSummaryBookmarkMenu(false);
+                                                                                    setSuccessMsg(`${b.name} 폴더에 ${selectedImageIds.length}개의 이미지를 추가했습니다.`);
+                                                                                    setShowSuccess(true);
+                                                                                }}
+                                                                                className="w-full text-left px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl transition-all flex items-center justify-between group"
+                                                                            >
+                                                                                <span className="flex items-center truncate mr-2"><Folder className="w-3.5 h-3.5 mr-2.5 text-indigo-400 group-hover:text-indigo-600 opacity-60 group-hover:opacity-100" />{b.name}</span>
+                                                                                <Plus className="w-3 h-3 text-indigo-300 opacity-0 group-hover:opacity-100" />
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => { setShowSummaryBookmarkMenu(false); setShowNewBookmarkModal(true); }}
+                                                                    className="w-full text-left px-3 py-2.5 text-xs font-black text-indigo-600 hover:bg-indigo-50 rounded-xl mt-1.5 border-t border-indigo-50 flex items-center pt-3"
+                                                                >
+                                                                    <Plus className="w-3.5 h-3.5 mr-2.5" />새 폴더 만들기
+                                                                </button>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </div>
                                         </div>
                                         <button onClick={() => { setSelectedImageIds([]); setSelectedScopes([]); }} className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-tighter bg-gray-50 px-2 py-1 rounded-md transition-colors">전체 선택 해제</button>
                                     </div>
