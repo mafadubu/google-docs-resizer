@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         }
 
         // 3. Batch Update in small chunks for extreme stability
-        const CHUNK_SIZE = 10; // 5-10 requests at a time
+        const CHUNK_SIZE = 4; // Use smaller chunk size (4 images = 8 requests) to avoid "Internal error"
         const newIdMapping: Record<string, string> = {};
         let totalInsertCount = 0;
 
