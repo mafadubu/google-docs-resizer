@@ -528,7 +528,7 @@ export function Dashboard() {
                     <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block space-y-4`}>
                         {structure ? (
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
-                                <div className="sticky top-[71px] z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl">
+                                <div className="sticky top-[71.5px] z-30 bg-white border-b border-gray-100 shadow-md rounded-t-2xl">
                                     {!activeChapterId ? (
                                         <div className="p-4 rounded-t-2xl"><h2 className="text-base font-bold text-gray-900 truncate">{structure.title}</h2><p className="text-xs text-gray-500">아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다.</p></div>
                                     ) : (

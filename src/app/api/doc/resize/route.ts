@@ -38,14 +38,14 @@ export async function POST(req: Request) {
         }
 
         // 3. Batch Update in small chunks for extreme stability
-        const CHUNK_SIZE = 4; // Use smaller chunk size (4 images = 8 requests) to avoid "Internal error"
+        const CHUNK_SIZE = 1; // Process ONE by ONE to avoid any index shifting or internal Google errors
         const newIdMapping: Record<string, string> = {};
         let totalInsertCount = 0;
 
         for (let i = 0; i < requests.length; i += CHUNK_SIZE) {
             const chunk = requests.slice(i, i + CHUNK_SIZE);
             let retryCount = 0;
-            const MAX_RETRIES = 2;
+            const MAX_RETRIES = 3;
 
             while (retryCount <= MAX_RETRIES) {
                 try {
@@ -56,8 +56,6 @@ export async function POST(req: Request) {
                         },
                     });
 
-                    // Extract New IDs (only for Insertions, e.g. Positioned images turned Inline)
-                    // updateInlineObjectProperties preserves the original ID.
                     const insertReplies = response.data.replies?.filter((r: any) => r.insertInlineImage) || [];
                     if (insertReplies.length > 0) {
                         const originalIdsForThisChunk = originalIds.slice(totalInsertCount, totalInsertCount + insertReplies.length);
@@ -71,24 +69,23 @@ export async function POST(req: Request) {
 
                     break;
                 } catch (chunkError: any) {
-                    console.error(`Error on chunk ${i}:`, chunkError.message);
+                    console.error(`[Resize Error] Chunk ${i}, Retry ${retryCount}:`, chunkError.message);
                     if (chunkError.response?.data) {
-                        console.error("API Error Payload:", JSON.stringify(chunkError.response.data, null, 2));
+                        console.error("API Detail:", JSON.stringify(chunkError.response.data));
                     }
 
                     const isRetryable = chunkError.message?.includes("Internal error") || chunkError.code === 500;
                     if (isRetryable && retryCount < MAX_RETRIES) {
                         retryCount++;
-                        await new Promise(resolve => setTimeout(resolve, 1500 * retryCount));
+                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
                         continue;
                     }
                     throw chunkError;
                 }
             }
 
-            if (i + CHUNK_SIZE < requests.length) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
+            // Small delay between individual requests to prevent overwhelming the API
+            await new Promise(resolve => setTimeout(resolve, 300));
         }
 
         // Final counts: Update + Insert
