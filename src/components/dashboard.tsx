@@ -119,24 +119,18 @@ export function Dashboard() {
 
             // 2. Element found
             if (el) {
-                // Standard scrollIntoView handles nested scroll containers (sidebar + internal list) automatically
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                // Force internal container scroll if provided
-                if (containerId) {
+                // If it's summary list, align to TOP (with offset) like it's sticking to the menu
+                if (containerId === 'summary-list') {
                     const container = document.getElementById(containerId);
                     if (container && container.scrollHeight > container.clientHeight) {
                         const rect = el.getBoundingClientRect();
                         const containerRect = container.getBoundingClientRect();
-                        
-                        // If it's summary list, align to TOP (with offset) like it's sticking to the menu
-                        const isSummary = containerId === 'summary-list';
-                        const targetTop = isSummary 
-                            ? container.scrollTop + (rect.top - containerRect.top) - 8 // Align top with small padding
-                            : container.scrollTop + (rect.top - containerRect.top) - (containerRect.height / 2) + (rect.height / 2); // Center otherwise
-                            
+                        const targetTop = container.scrollTop + (rect.top - containerRect.top) - 8;
                         container.scrollTo({ top: targetTop, behavior: 'smooth' });
                     }
+                } else {
+                    // Standard scrollIntoView for other cases (like detail view)
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             } else if (retryCount < 8) {
                 // 3. Keep trying (Useful when summary box is mounting for the first time)
@@ -467,7 +461,7 @@ export function Dashboard() {
                     <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block`}>
                         {structure ? (
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[500px]">
-                                <div className="sticky top-24 z-40 bg-white border-b border-gray-100 shadow-sm rounded-t-2xl">
+                                <div className="sticky top-[73px] z-40 bg-white border-b border-gray-100 shadow-sm rounded-t-2xl">
                                     {!activeChapterId ? (
                                         <div className="p-4 bg-white/95 backdrop-blur-md rounded-t-2xl"><h2 className="text-base font-bold text-gray-900 truncate">{structure.title}</h2><p className="text-xs text-gray-500">아래 챕터를 클릭하면, 해당 챕터만 선택해서 조절할 수 있습니다.</p></div>
                                     ) : (
