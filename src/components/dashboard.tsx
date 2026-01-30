@@ -533,9 +533,9 @@ export function Dashboard() {
                                         <div className="py-5"><h2 className="text-base font-black text-gray-900 truncate leading-tight">{structure.title}</h2><p className="text-[11px] text-gray-500 mt-1">상세 조절을 위해 아래 챕터를 선택해 주세요.</p></div>
                                     ) : (
                                         <div className="divide-y divide-gray-50">
-                                            <div className="flex items-center justify-between py-3">
-                                                <button onClick={handleBackToOutline} className="flex items-center px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all text-[11px] font-black"><ChevronLeft className="w-3.5 h-3.5 mr-1" />목차로 돌아가기</button>
-                                                <div className="flex-1 px-4 text-center min-w-0"><h3 className="text-sm font-black text-gray-900 truncate">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3></div>
+                                            <div className="flex items-center justify-between py-3 gap-2">
+                                                <button onClick={handleBackToOutline} className="flex-shrink-0 flex items-center px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all text-[11px] font-black"><ChevronLeft className="w-3.5 h-3.5 mr-1" />목차로</button>
+                                                <div className="flex-1 min-w-0 text-center"><h3 className="text-sm font-black text-gray-900 truncate px-2">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3></div>
                                                 <button onClick={() => {
                                                     const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                     if (!currentChapter) return;
@@ -543,7 +543,7 @@ export function Dashboard() {
                                                     const areAllSelected = allIds.every((id: string) => selectedImageIds.includes(id));
                                                     if (areAllSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
                                                     else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
-                                                }} className="text-[11px] font-black text-indigo-500 hover:text-indigo-700 px-3 py-2 bg-indigo-50/50 rounded-xl transition-all">{(() => {
+                                                }} className="flex-shrink-0 text-[11px] font-black text-indigo-500 hover:text-indigo-700 px-3 py-2 bg-indigo-50/50 rounded-xl transition-all">{(() => {
                                                     const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                     const allIds = currentChapter?.images.map((img: any) => img.id) || [];
                                                     return allIds.every((id: string) => selectedImageIds.includes(id)) ? "전체 해제" : "전체 선택";

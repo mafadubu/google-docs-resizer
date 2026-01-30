@@ -299,40 +299,22 @@ export const calculateImageResizeRequests = (
     const originalIds: string[] = [];
 
     actions.forEach(action => {
-        if (action.type === 'inline') {
-            // BEST PRACTICE: Use updateInlineObjectProperties to change size by ID.
-            // This is safer than Delete+Insert as it doesn't shift indices or require a public URI.
-            requests.push({
-                updateInlineObjectProperties: {
-                    objectId: action.id,
-                    inlineObjectProperties: {
-                        embeddedObject: {
-                            size: {
-                                width: { magnitude: action.width, unit: 'PT' },
-                                height: { magnitude: action.height, unit: 'PT' }
-                            }
+        // BEST PRACTICE: Use updateEmbeddedObjectProperties for both inline and positioned objects.
+        // This is the correct field name in the Google Docs batchUpdate API.
+        requests.push({
+            updateEmbeddedObjectProperties: {
+                objectId: action.id,
+                embeddedObjectProperties: {
+                    embeddedObject: {
+                        size: {
+                            width: { magnitude: action.width, unit: 'PT' },
+                            height: { magnitude: action.height, unit: 'PT' }
                         }
-                    },
-                    fields: 'embeddedObject.size'
-                }
-            });
-        } else if (action.type === 'positioned') {
-            // BEST PRACTICE: Use updatePositionedObjectProperties for floating images.
-            requests.push({
-                updatePositionedObjectProperties: {
-                    objectId: action.id,
-                    positionedObjectProperties: {
-                        embeddedObject: {
-                            size: {
-                                width: { magnitude: action.width, unit: 'PT' },
-                                height: { magnitude: action.height, unit: 'PT' }
-                            }
-                        }
-                    },
-                    fields: 'embeddedObject.size'
-                }
-            });
-        }
+                    }
+                },
+                fields: 'embeddedObject.size'
+            }
+        });
     });
 
     return { requests, originalIds: [] };
