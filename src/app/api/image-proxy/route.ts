@@ -1,16 +1,24 @@
+import { getImageTicket } from "@/lib/redis";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
-    const url = searchParams.get("url");
-    const token = searchParams.get("token");
+    const id = searchParams.get("id");
 
-    if (!url || !token) {
-        return new Response("Missing url or token", { status: 400 });
+    if (!id) {
+        return new Response("Missing ticket id", { status: 400 });
     }
 
     try {
-        console.log(`[Image Proxy] Fetching image: ${url.substring(0, 50)}...`);
+        const ticket = await getImageTicket(id);
+        if (!ticket) {
+            console.error(`[Image Proxy] Ticket not found or expired: ${id}`);
+            return new Response("Ticket not found or expired", { status: 404 });
+        }
+
+        const { url, token } = ticket;
+        console.log(`[Image Proxy] Fetching image for ticket ${id}: ${url.substring(0, 50)}...`);
+
         const response = await fetch(url, {
             headers: {
                 Authorization: `Bearer ${token}`,

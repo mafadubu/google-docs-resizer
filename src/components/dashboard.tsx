@@ -413,9 +413,9 @@ export function Dashboard() {
                     </div>
                     <div className="flex flex-col">
                         <span className="font-bold text-lg tracking-tight group-hover:text-indigo-600 transition-colors leading-none">Docs Resizer ✨</span>
-                        <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest mt-0.5 flex items-center">
-                            <span className="w-1 h-1 bg-rose-500 rounded-full mr-1 animate-ping" />
-                            v4.0 Sequential Engine
+                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mt-0.5 flex items-center">
+                            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1.5 animate-pulse" />
+                            v5.0 Hyper-Fix
                         </span>
                     </div>
                 </div>
@@ -560,17 +560,17 @@ export function Dashboard() {
 
                                                 return (
                                                     <div key={item.id} id={`summary-heading-${item.id}`} className={`${isTopLevel ? 'bg-indigo-50/50' : 'bg-white border-dashed'} rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm transition-all`}>
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex items-center space-x-2 min-w-0">
+                                                        <div className="space-y-1.5 min-w-0 flex-1">
+                                                            <div className="flex items-center space-x-2 min-w-0 w-full">
                                                                 <div className={`w-1.5 h-1.5 rounded-full ${isTopLevel ? 'bg-indigo-600' : 'bg-indigo-300'} shrink-0`} />
-                                                                <div className="flex flex-col min-w-0 flex-1">
+                                                                <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                                                                     {hierarchy && hierarchy.length > 1 && !isTopLevel && (
                                                                         <div className="flex items-center space-x-1.5 opacity-60 mb-0.5 overflow-hidden">
-                                                                            <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded uppercase tracking-tighter truncate">{hierarchy[hierarchy.length - 2]}</span>
-                                                                            <ChevronRight className="w-2 h-2 text-indigo-300" />
+                                                                            <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded uppercase tracking-tighter truncate max-w-[120px]">{hierarchy[hierarchy.length - 2]}</span>
+                                                                            <ChevronRight className="w-2 h-2 text-indigo-300 shrink-0" />
                                                                         </div>
                                                                     )}
-                                                                    <h4 className={`font-black tracking-tight truncate w-full ${isTopLevel ? 'text-indigo-950 text-xs' : 'text-indigo-900 text-[11px]'}`}>{item.title}</h4>
+                                                                    <h4 className={`font-black tracking-tight truncate w-full ${isTopLevel ? 'text-indigo-950 text-xs' : 'text-indigo-900 text-[11px]'}`} title={item.title}>{item.title}</h4>
                                                                 </div>
                                                             </div>
                                                         </div>

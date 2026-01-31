@@ -43,3 +43,24 @@ export const getStats = async () => {
         return { total: 0, today: 0 };
     }
 }
+
+export const storeImageTicket = async (id: string, data: { url: string, token: string }) => {
+    if (!redis) return;
+    try {
+        await redis.set(`img_tk:${id}`, JSON.stringify(data), { ex: 300 }); // 5 minutes TTL
+    } catch (e) {
+        console.error("Redis Store Ticket Error:", e);
+    }
+}
+
+export const getImageTicket = async (id: string): Promise<{ url: string, token: string } | null> => {
+    if (!redis) return null;
+    try {
+        const data = await redis.get<string>(`img_tk:${id}`);
+        if (!data) return null;
+        return typeof data === 'string' ? JSON.parse(data) : data;
+    } catch (e) {
+        console.error("Redis Get Ticket Error:", e);
+        return null;
+    }
+}

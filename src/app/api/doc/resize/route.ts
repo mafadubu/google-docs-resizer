@@ -1,8 +1,9 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
 import { calculateImageResizeRequests, getGoogleDocsClient } from "@/lib/google-docs";
-import { incrementStats } from "@/lib/redis";
+import { incrementStats, storeImageTicket } from "@/lib/redis";
 import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -21,25 +22,74 @@ export async function POST(req: Request) {
         }
 
         const docs = getGoogleDocsClient(accessToken);
-
-        // 1. Fetch current doc state (to get current image sizes)
         const docRes = await docs.documents.get({ documentId: docId });
         const doc = docRes.data;
 
-        // 2. Calculate requests
         const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "google-docs-resizer.vercel.app";
-        const { requests, originalIds } = calculateImageResizeRequests(doc, {
+
+        // 1. Get Actions
+        const { actions } = calculateImageResizeRequests(doc, {
             targetWidthCm,
             scopes: Array.isArray(scopes) ? scopes : undefined,
             selectedImageIds: Array.isArray(selectedImageIds) ? selectedImageIds : undefined
         }, accessToken, host);
 
-        if (requests.length === 0) {
-            return NextResponse.json({ message: "No images found to resize", count: 0 });
+        if (actions.length === 0) {
+            return NextResponse.json({ message: "No images found to resize", count: 0, results: { success: 0, total: 0, failed: 0 } });
         }
 
-        // 3. Batch Update in MICRO chunks (v4.0 Stability)
-        // Smaller chunks (5 images = 10 requests) are MUCH more stable and avoid timeouts.
+        // 2. Build requests using Redis tickets for short URIs
+        const requests: any[] = [];
+        const originalIds: string[] = [];
+
+        for (const action of actions) {
+            // Generate a short ID for the URI to stay well under 2KB limit
+            const ticketId = uuidv4().substring(0, 8) + Date.now().toString(36);
+            await storeImageTicket(ticketId, { url: action.uri, token: accessToken });
+
+            const proxyUri = `https://${host}/api/image-proxy?id=${ticketId}`;
+
+            if (action.type === 'inline') {
+                requests.push({
+                    deleteContentRange: {
+                        range: {
+                            startIndex: action.index,
+                            endIndex: action.index + 1
+                        }
+                    }
+                });
+                requests.push({
+                    insertInlineImage: {
+                        uri: proxyUri,
+                        location: { index: action.index },
+                        objectSize: {
+                            width: { magnitude: action.width, unit: 'PT' },
+                            height: { magnitude: action.height, unit: 'PT' }
+                        }
+                    }
+                });
+                originalIds.push(action.id);
+            } else if (action.type === 'positioned') {
+                requests.push({
+                    deletePositionedObject: {
+                        objectId: action.id
+                    }
+                });
+                requests.push({
+                    insertInlineImage: {
+                        uri: proxyUri,
+                        location: { index: action.anchorIndex },
+                        objectSize: {
+                            width: { magnitude: action.width, unit: 'PT' },
+                            height: { magnitude: action.height, unit: 'PT' }
+                        }
+                    }
+                });
+                originalIds.push(action.id);
+            }
+        }
+
+        // 3. Process batches (Micro-Batch v4.0 Engine)
         const MICRO_CHUNK_SIZE = 5;
         const newIdMapping: Record<string, string> = {};
         let successCount = 0;
@@ -50,9 +100,7 @@ export async function POST(req: Request) {
             try {
                 const response = await docs.documents.batchUpdate({
                     documentId: docId,
-                    requestBody: {
-                        requests: chunk,
-                    },
+                    requestBody: { requests: chunk },
                 });
 
                 const replies = response.data.replies || [];
@@ -68,12 +116,12 @@ export async function POST(req: Request) {
                 });
                 successCount += chunkInsertCount;
             } catch (chunkError: any) {
-                console.error(`[Resize Micro-Batch Error] At index ${i}:`, chunkError.message);
+                console.error(`[Resize Error] Batch starting at ${i}:`, chunkError.message);
+                if (chunkError.response) console.error("API ERROR DETAILS:", JSON.stringify(chunkError.response.data, null, 2));
                 failCount += (chunk.filter(c => c.insertInlineImage).length);
             }
         }
 
-        // Update stats (only for successful ones)
         if (successCount > 0) {
             incrementStats(successCount).catch(e => console.error("Stats Error:", e));
         }
@@ -90,13 +138,9 @@ export async function POST(req: Request) {
         });
 
     } catch (error: any) {
-        console.error("Error resizing images:", error);
-        if (error.response) {
-            // Keep error details for production debugging if needed, or remove if strictly cleaning up
-            console.error("API ERROR DETAILS:", JSON.stringify(error.response.data, null, 2));
-        }
+        console.error("Critical Resize error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to resize images" },
+            { error: error.message || "Failed to resize images", results: { success: 0, total: 0, failed: 1 } },
             { status: 500 }
         );
     }

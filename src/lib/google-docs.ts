@@ -294,58 +294,9 @@ export const calculateImageResizeRequests = (
         const valA = (a.type === 'inline' ? a.index : a.anchorIndex) || 0;
         const valB = (b.type === 'inline' ? b.index : b.anchorIndex) || 0;
         if (valB !== valA) return valB - valA;
-        // If same index, process 'positioned' first to avoid text shift issues
         if (a.type !== b.type) return a.type === 'positioned' ? -1 : 1;
         return 0;
     });
 
-    const requests: any[] = [];
-    const originalIds: string[] = [];
-
-    actions.forEach(action => {
-        // Build proxy URL (Must be publicly accessible for Google Docs fetcher)
-        const proxyUri = `https://${host}/api/image-proxy?url=${encodeURIComponent(action.uri)}&token=${accessToken}`;
-
-        if (action.type === 'inline') {
-            // Use Delete-Insert with PROXY URI to avoid "Internal Error" from restricted contentUri
-            requests.push({
-                deleteContentRange: {
-                    range: {
-                        startIndex: action.index,
-                        endIndex: action.index + 1
-                    }
-                }
-            });
-            requests.push({
-                insertInlineImage: {
-                    uri: proxyUri,
-                    location: { index: action.index },
-                    objectSize: {
-                        width: { magnitude: action.width, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
-                }
-            });
-            originalIds.push(action.id);
-        } else if (action.type === 'positioned') {
-            requests.push({
-                deletePositionedObject: {
-                    objectId: action.id
-                }
-            });
-            requests.push({
-                insertInlineImage: {
-                    uri: proxyUri,
-                    location: { index: action.anchorIndex },
-                    objectSize: {
-                        width: { magnitude: action.width, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
-                }
-            });
-            originalIds.push(action.id);
-        }
-    });
-
-    return { requests, originalIds };
+    return { actions };
 };
