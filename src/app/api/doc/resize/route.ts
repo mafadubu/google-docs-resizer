@@ -38,64 +38,55 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "No images found to resize", count: 0 });
         }
 
-        // 3. Batch Update in chunks (optimized for Vercel 10s limit)
-        // Delete+Insert strategy changes IDs, so mapping is crucial.
-        const CHUNK_SIZE = 40; // 40 images (80 requests) is safe and fast
+        // 3. Batch Update in MICRO chunks (v4.0 Stability)
+        // Smaller chunks (5 images = 10 requests) are MUCH more stable and avoid timeouts.
+        const MICRO_CHUNK_SIZE = 5;
         const newIdMapping: Record<string, string> = {};
-        let processedInsertCount = 0;
+        let successCount = 0;
+        let failCount = 0;
 
-        for (let i = 0; i < requests.length; i += (CHUNK_SIZE * 2)) {
-            const chunk = requests.slice(i, i + (CHUNK_SIZE * 2));
-            let retryCount = 0;
-            const MAX_RETRIES = 2;
+        for (let i = 0; i < requests.length; i += (MICRO_CHUNK_SIZE * 2)) {
+            const chunk = requests.slice(i, i + (MICRO_CHUNK_SIZE * 2));
+            try {
+                const response = await docs.documents.batchUpdate({
+                    documentId: docId,
+                    requestBody: {
+                        requests: chunk,
+                    },
+                });
 
-            while (retryCount <= MAX_RETRIES) {
-                try {
-                    const response = await docs.documents.batchUpdate({
-                        documentId: docId,
-                        requestBody: {
-                            requests: chunk,
-                        },
-                    });
-
-                    // Update ID Mapping for frontend
-                    const replies = response.data.replies || [];
-                    let chunkInsertCount = 0;
-                    chunk.forEach((req, cIdx) => {
-                        if (req.insertInlineImage) {
-                            const reply = replies[cIdx];
-                            const oldId = originalIds[processedInsertCount + chunkInsertCount];
-                            const newId = reply.insertInlineImage?.objectId;
-                            if (oldId && newId) newIdMapping[oldId] = newId;
-                            chunkInsertCount++;
-                        }
-                    });
-                    processedInsertCount += chunkInsertCount;
-                    break;
-                } catch (chunkError: any) {
-                    console.error(`[Resize Error] Batch starting at ${i}, Retry ${retryCount}:`, chunkError.message);
-                    if (chunkError.message?.includes("Internal error") && retryCount < MAX_RETRIES) {
-                        retryCount++;
-                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-                        continue;
+                const replies = response.data.replies || [];
+                let chunkInsertCount = 0;
+                chunk.forEach((req, cIdx) => {
+                    if (req.insertInlineImage) {
+                        const reply = replies[cIdx];
+                        const oldId = originalIds[successCount + failCount + chunkInsertCount];
+                        const newId = reply.insertInlineImage?.objectId;
+                        if (oldId && newId) newIdMapping[oldId] = newId;
+                        chunkInsertCount++;
                     }
-                    throw chunkError;
-                }
-            }
-
-            if (i + (CHUNK_SIZE * 2) < requests.length) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+                });
+                successCount += chunkInsertCount;
+            } catch (chunkError: any) {
+                console.error(`[Resize Micro-Batch Error] At index ${i}:`, chunkError.message);
+                failCount += (chunk.filter(c => c.insertInlineImage).length);
             }
         }
 
-        // Update stats (fire and forget)
-        incrementStats(processedInsertCount).catch(e => console.error("Stats Error:", e));
+        // Update stats (only for successful ones)
+        if (successCount > 0) {
+            incrementStats(successCount).catch(e => console.error("Stats Error:", e));
+        }
 
         return NextResponse.json({
             success: true,
-            count: processedInsertCount,
+            results: {
+                total: successCount + failCount,
+                success: successCount,
+                failed: failCount
+            },
             newIdMapping,
-            message: `Successfully resized ${processedInsertCount} images.`
+            message: `Processed ${successCount} images successfully, ${failCount} failed.`
         });
 
     } catch (error: any) {

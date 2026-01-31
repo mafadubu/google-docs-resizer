@@ -1,5 +1,7 @@
 "use client";
 
+import { SuccessModal } from "@/components/success-modal";
+import { AnimatePresence, motion } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
 import React, { useState, useEffect } from "react";
 import {
@@ -10,8 +12,6 @@ import {
 } from "lucide-react";
 import { GuideModal } from "@/components/guide-modal";
 import { WarningModal } from "@/components/warning-modal";
-import { SuccessModal } from "@/components/success-modal";
-import { AnimatePresence, motion } from "framer-motion";
 
 export function Dashboard() {
     const { data: session } = useSession();
@@ -42,6 +42,9 @@ export function Dashboard() {
     const [targetWidth, setTargetWidth] = useState(10); // cm
     const [resizeStatus, setResizeStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
     const [resultMsg, setResultMsg] = useState("");
+    const [resizeProgress, setResizeProgress] = useState(0);
+    const [resizeStats, setResizeStats] = useState({ success: 0, failed: 0, total: 0 });
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const imageToHeadingMap = React.useMemo(() => {
         if (!structure) return {} as Record<string, string>;
@@ -281,57 +284,83 @@ export function Dashboard() {
     };
 
     const handleResize = async (customConfig?: { width: number, imageIds?: string[] }) => {
-        if (!structure?.id) return;
-        setResizeStatus("processing");
+        if (!structure || resizeStatus === "processing") return;
 
-        const widthToUse = customConfig ? customConfig.width : targetWidth;
-        const idsToUse = customConfig ? customConfig.imageIds : selectedImageIds;
+        const imageIds = customConfig?.imageIds || (selectedImageIds.length > 0 ? selectedImageIds : []);
+        if (imageIds.length === 0) {
+            setWarningMsg("크기를 조절할 이미지를 선택해주세요.");
+            setShowWarning(true);
+            return;
+        }
+
+        setResizeStatus("processing");
+        setIsProcessing(true);
+        setResultMsg("");
+        setResizeProgress(0);
+        setResizeStats({ success: 0, failed: 0, total: imageIds.length });
+
+        const CHUNK_SIZE = 10; // 10 images at a time from client side
+        let finalSuccess = 0;
+        let finalFailed = 0;
+        const newMapping: Record<string, string> = {};
 
         try {
-            const payload: any = {
-                docId: structure.id,
-                targetWidthCm: widthToUse,
-                scopes: (!idsToUse || idsToUse.length === 0) && selectedScopes.length > 0 ? selectedScopes : undefined,
-                selectedImageIds: idsToUse && idsToUse.length > 0 ? idsToUse : undefined
-            };
-            const res = await fetch("/api/doc/resize", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+            for (let i = 0; i < imageIds.length; i += CHUNK_SIZE) {
+                const chunkIds = imageIds.slice(i, i + CHUNK_SIZE);
+                const res = await fetch("/api/doc/resize", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        docId: structure.id,
+                        targetWidthCm: customConfig ? customConfig.width : targetWidth,
+                        selectedImageIds: chunkIds,
+                    }),
+                });
 
-            if (data.count === 0) {
-                setWarningMsg("크기를 조절할 이미지를 찾지 못했습니다. 선택 범위를 확인해 주세요.");
-                setShowWarning(true);
-                setResizeStatus("idle");
-            } else {
-                if (data.newIdMapping) {
-                    const mapping = data.newIdMapping;
-                    setSelectedImageIds(prev => prev.map(id => mapping[id] || id));
-                    if (structure) {
-                        const newStructure = { ...structure };
-                        newStructure.items = newStructure.items.map((item: any) => ({
-                            ...item,
-                            images: item.images.map((img: any) => ({
-                                ...img,
-                                id: mapping[img.id] || img.id
-                            }))
-                        }));
-                        setStructure(newStructure);
-                    }
+                if (!res.ok) {
+                    finalFailed += chunkIds.length;
+                    continue;
                 }
-                setResizeStatus("success");
-                setResultMsg(data.message);
-                setSuccessMsg(data.message);
-                setShowSuccess(true);
+
+                const data = await res.json();
+                if (data.success) {
+                    finalSuccess += data.results.success;
+                    finalFailed += data.results.failed;
+                    if (data.newIdMapping) Object.assign(newMapping, data.newIdMapping);
+                } else {
+                    finalFailed += chunkIds.length;
+                }
+
+                const currentProgress = Math.min(Math.round(((i + chunkIds.length) / imageIds.length) * 100), 100);
+                setResizeProgress(currentProgress);
+                setResizeStats({ success: finalSuccess, failed: finalFailed, total: imageIds.length });
             }
-        } catch (e: any) {
+
+            // Update local state with new IDs to prevent ghost images
+            if (Object.keys(newMapping).length > 0) {
+                setSelectedImageIds(prev => prev.map(id => newMapping[id] || id));
+                if (structure) {
+                    const newStructure = { ...structure };
+                    newStructure.items = newStructure.items.map((item: any) => ({
+                        ...item,
+                        images: item.images.map((img: any) => ({
+                            ...img,
+                            id: newMapping[img.id] || img.id
+                        }))
+                    }));
+                    setStructure(newStructure);
+                }
+            }
+
+            setResizeStatus("success");
+            setSuccessMsg(`${finalSuccess}개 이미지 조절 완료! (${finalFailed}개 실패)`);
+            setShowSuccess(true);
+            await syncDoc(true); // Silent sync after finishing all batches
+        } catch (error: any) {
             setResizeStatus("error");
-            setResultMsg(e.message);
-            setWarningMsg("오류가 발생했습니다: " + e.message);
-            setShowWarning(true);
+            setResultMsg(error.message || "오류가 발생했습니다.");
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -341,6 +370,41 @@ export function Dashboard() {
                 {showGuide && <GuideModal isOpen={showGuide} onClose={closeGuide} />}
                 {showWarning && <WarningModal isOpen={showWarning} onClose={() => setShowWarning(false)} message={warningMsg} />}
             </AnimatePresence>
+            {/* v4.0 Processing Overlay */}
+            <AnimatePresence>
+                {isProcessing && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-indigo-950/80 backdrop-blur-md flex items-center justify-center p-6">
+                        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center space-y-6">
+                            <div className="relative w-24 h-24 mx-auto">
+                                <svg className="w-full h-full rotate-[-90deg]">
+                                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100" />
+                                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * resizeProgress) / 100} className="text-indigo-600 transition-all duration-500" strokeLinecap="round" />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-xl font-black text-indigo-600">{resizeProgress}%</span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xl font-black text-gray-900">이미지 규격화 작업 중...</h3>
+                                <p className="text-sm text-gray-500">대용량 문서의 경우 다소 시간이 소요될 수 있습니다.</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-green-50 rounded-2xl p-3 border border-green-100">
+                                    <div className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">성공</div>
+                                    <div className="text-xl font-black text-green-700">{resizeStats.success}</div>
+                                </div>
+                                <div className="bg-red-50 rounded-2xl p-3 border border-red-100">
+                                    <div className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">실패</div>
+                                    <div className="text-xl font-black text-red-700">{resizeStats.failed}</div>
+                                </div>
+                            </div>
+                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] animate-pulse">
+                                처리 중: {resizeStats.success + resizeStats.failed} / {resizeStats.total}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
                 <div className="flex items-center space-x-3 cursor-pointer group" onClick={handleReset}>
                     <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform relative">
@@ -349,9 +413,9 @@ export function Dashboard() {
                     </div>
                     <div className="flex flex-col">
                         <span className="font-bold text-lg tracking-tight group-hover:text-indigo-600 transition-colors leading-none">Docs Resizer ✨</span>
-                        <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest mt-0.5 flex items-center">
-                            <span className="w-1 h-1 bg-blue-500 rounded-full mr-1 animate-ping" />
-                            v3.8 Hyper Stable
+                        <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest mt-0.5 flex items-center">
+                            <span className="w-1 h-1 bg-rose-500 rounded-full mr-1 animate-ping" />
+                            v4.0 Sequential Engine
                         </span>
                     </div>
                 </div>
