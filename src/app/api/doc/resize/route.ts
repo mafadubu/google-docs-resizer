@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
-import { calculateImageResizeRequests, getGoogleDocsClient } from "@/lib/google-docs";
+import { findImageMetadata, getGoogleDocsClient } from "@/lib/google-docs";
 import { incrementStats, storeImageTicket } from "@/lib/redis";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from 'uuid';
@@ -15,132 +15,101 @@ export async function POST(req: Request) {
     }
 
     try {
-        const { docId, targetWidthCm, scopes, selectedImageIds } = await req.json();
+        const { docId, targetWidthCm, imageId } = await req.json();
 
-        if (!docId || !targetWidthCm) {
-            return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
+        if (!docId || !targetWidthCm || !imageId) {
+            return NextResponse.json({ error: "Missing required parameters (Atomic v7.0)" }, { status: 400 });
         }
 
         const docs = getGoogleDocsClient(accessToken);
+
+        // 1. Fetch FRESH document state
         const docRes = await docs.documents.get({ documentId: docId });
         const doc = docRes.data;
 
+        // 2. Find CURRENT position and metadata for this specific image
+        const metadata = findImageMetadata(doc, imageId);
+        if (!metadata) {
+            return NextResponse.json({ error: "Image not found in latest document state", imageId }, { status: 404 });
+        }
+
         const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "google-docs-resizer.vercel.app";
+        const targetWidthPt = targetWidthCm * 28.3465;
+        const scale = targetWidthPt / (metadata.width || targetWidthPt);
+        const newHeightPt = (metadata.height || targetWidthPt) * scale;
 
-        // 1. Get Actions
-        const { actions } = calculateImageResizeRequests(doc, {
-            targetWidthCm,
-            scopes: Array.isArray(scopes) ? scopes : undefined,
-            selectedImageIds: Array.isArray(selectedImageIds) ? selectedImageIds : undefined
-        }, accessToken, host);
+        // 3. Prepare Proxy
+        const ticketId = uuidv4().substring(0, 8) + Date.now().toString(36);
+        await storeImageTicket(ticketId, { url: metadata.uri!, token: accessToken });
+        const proxyUri = `https://${host}/api/image-proxy?id=${ticketId}`;
 
-        if (actions.length === 0) {
-            return NextResponse.json({ message: "No images found to resize", count: 0, results: { success: 0, total: 0, failed: 0 } });
-        }
-
-        // 2. Build requests using Redis tickets for short URIs
+        // 4. Atomic Mutation (Delete and Re-insert)
         const requests: any[] = [];
-        const originalIds: string[] = [];
 
-        for (const action of actions) {
-            // Generate a short ID for the URI to stay well under 2KB limit
-            const ticketId = uuidv4().substring(0, 8) + Date.now().toString(36);
-            await storeImageTicket(ticketId, { url: action.uri, token: accessToken });
+        if (metadata.type === 'inline') {
+            requests.push({
+                deleteContentRange: {
+                    range: {
+                        startIndex: metadata.index!,
+                        endIndex: metadata.index! + 1
+                    }
+                }
+            });
+            requests.push({
+                insertInlineImage: {
+                    uri: proxyUri,
+                    location: { index: metadata.index! },
+                    objectSize: {
+                        width: { magnitude: targetWidthPt, unit: 'PT' },
+                        height: { magnitude: newHeightPt, unit: 'PT' }
+                    }
+                }
+            });
+        } else {
+            // Positioned
+            requests.push({
+                deletePositionedObject: { objectId: metadata.id }
+            });
+            requests.push({
+                insertInlineImage: {
+                    uri: proxyUri,
+                    location: { index: metadata.anchorIndex! },
+                    objectSize: {
+                        width: { magnitude: targetWidthPt, unit: 'PT' },
+                        height: { magnitude: newHeightPt, unit: 'PT' }
+                    }
+                }
+            });
+        }
 
-            const proxyUri = `https://${host}/api/image-proxy?id=${ticketId}`;
+        const response = await docs.documents.batchUpdate({
+            documentId: docId,
+            requestBody: { requests },
+        });
 
-            if (action.type === 'inline') {
-                requests.push({
-                    deleteContentRange: {
-                        range: {
-                            startIndex: action.index,
-                            endIndex: action.index + 1
-                        }
-                    }
-                });
-                requests.push({
-                    insertInlineImage: {
-                        uri: proxyUri,
-                        location: { index: action.index },
-                        objectSize: {
-                            width: { magnitude: action.width, unit: 'PT' },
-                            height: { magnitude: action.height, unit: 'PT' }
-                        }
-                    }
-                });
-                originalIds.push(action.id);
-            } else if (action.type === 'positioned') {
-                requests.push({
-                    deletePositionedObject: {
-                        objectId: action.id
-                    }
-                });
-                requests.push({
-                    insertInlineImage: {
-                        uri: proxyUri,
-                        location: { index: action.anchorIndex },
-                        objectSize: {
-                            width: { magnitude: action.width, unit: 'PT' },
-                            height: { magnitude: action.height, unit: 'PT' }
-                        }
-                    }
-                });
-                originalIds.push(action.id);
+        const replies = response.data.replies || [];
+        let newObjectId = imageId;
+
+        // Find the new ID from the reply
+        replies.forEach(reply => {
+            if (reply.insertInlineImage?.objectId) {
+                newObjectId = reply.insertInlineImage.objectId;
             }
-        }
+        });
 
-        // 3. Process batches (Micro-Batch v4.0 Engine)
-        const MICRO_CHUNK_SIZE = 5;
-        const newIdMapping: Record<string, string> = {};
-        let successCount = 0;
-        let failCount = 0;
-
-        for (let i = 0; i < requests.length; i += (MICRO_CHUNK_SIZE * 2)) {
-            const chunk = requests.slice(i, i + (MICRO_CHUNK_SIZE * 2));
-            try {
-                const response = await docs.documents.batchUpdate({
-                    documentId: docId,
-                    requestBody: { requests: chunk },
-                });
-
-                const replies = response.data.replies || [];
-                let chunkInsertCount = 0;
-                chunk.forEach((req, cIdx) => {
-                    if (req.insertInlineImage) {
-                        const reply = replies[cIdx];
-                        const oldId = originalIds[successCount + failCount + chunkInsertCount];
-                        const newId = reply.insertInlineImage?.objectId;
-                        if (oldId && newId) newIdMapping[oldId] = newId;
-                        chunkInsertCount++;
-                    }
-                });
-                successCount += chunkInsertCount;
-            } catch (chunkError: any) {
-                console.error(`[Resize Error] Batch starting at ${i}:`, chunkError.message);
-                if (chunkError.response) console.error("API ERROR DETAILS:", JSON.stringify(chunkError.response.data, null, 2));
-                failCount += (chunk.filter(c => c.insertInlineImage).length);
-            }
-        }
-
-        if (successCount > 0) {
-            incrementStats(successCount).catch(e => console.error("Stats Error:", e));
-        }
+        incrementStats(1).catch(e => console.error("Stats Error:", e));
 
         return NextResponse.json({
             success: true,
-            results: {
-                total: successCount + failCount,
-                success: successCount,
-                failed: failCount
-            },
-            newIdMapping,
-            message: `Processed ${successCount} images successfully, ${failCount} failed.`
+            oldId: imageId,
+            newId: newObjectId,
+            message: "Atomic swap completed"
         });
 
     } catch (error: any) {
-        console.error("Critical Resize error:", error);
+        console.error("Atomic Resize Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to resize images", results: { success: 0, total: 0, failed: 1 } },
+            { error: error.message || "Failed to resize image", imageId: req.json().then(j => j.imageId).catch(() => 'unknown') },
             { status: 500 }
         );
     }

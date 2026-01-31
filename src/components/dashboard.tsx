@@ -38,41 +38,23 @@ export function Dashboard() {
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
     const [imgError, setImgError] = useState(false);
 
-    // Core States
+    // Quantum states (v7.0)
     const [targetWidth, setTargetWidth] = useState(10); // cm
-    const [resizeStatus, setResizeStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
-    const [resultMsg, setResultMsg] = useState("");
+    const [isProcessing, setIsProcessing] = useState(false);
     const [resizeProgress, setResizeProgress] = useState(0);
     const [resizeStats, setResizeStats] = useState({ success: 0, failed: 0, total: 0 });
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [currentImageContext, setCurrentImageContext] = useState("");
 
     const imageToHeadingMap = React.useMemo(() => {
         if (!structure) return {} as Record<string, string>;
         const map: Record<string, string> = {};
         structure.items.forEach((item: any) => {
             item.images.forEach((img: any) => {
-                const existing = map[img.uri];
-                if (!existing) {
-                    map[img.uri] = item.id;
-                } else {
-                    const existingItem = structure.items.find((it: any) => it.id === existing);
-                    if (existingItem && item.level > existingItem.level) {
-                        map[img.uri] = item.id;
-                    }
-                }
+                map[img.id] = item.id;
             });
         });
         return map;
     }, [structure]);
-
-    const findImageById = (id: string) => {
-        if (!structure) return null;
-        for (const item of structure.items) {
-            const img = item.images.find((i: any) => i.id === id);
-            if (img) return img;
-        }
-        return null;
-    };
 
     const getImageHierarchy = (imageId: string) => {
         if (!structure) return null;
@@ -110,74 +92,21 @@ export function Dashboard() {
         if (isLoaded) setIsInputFolded(true);
     }, [isLoaded]);
 
-    useEffect(() => {
-        const hasSeenGuide = localStorage.getItem("has-seen-guide");
-        if (!hasSeenGuide) setShowGuide(true);
-    }, []);
-
-    const closeGuide = () => {
-        setShowGuide(false);
-        localStorage.setItem("has-seen-guide", "true");
-    };
-
-    const scrollToElement = (id: string, containerId?: string, autoNavigateId?: { type: 'chapter' | 'heading', id: string, fallbackId?: string }) => {
-        const tryScroll = (retryCount = 0) => {
-            const el = document.getElementById(id) || (autoNavigateId?.fallbackId ? document.getElementById(autoNavigateId.fallbackId) : null);
-
-            if (!el && autoNavigateId && autoNavigateId.type === 'chapter') {
-                setActiveChapterId(autoNavigateId.id);
-                if (retryCount < 5) setTimeout(() => tryScroll(retryCount + 1), 250);
-                return;
-            }
-
-            if (el) {
-                if (containerId === 'summary-list') {
-                    const sidebar = document.getElementById('sidebar-container');
-                    const internalList = document.getElementById('summary-list');
-
-                    if (isSummaryExpanded && sidebar) {
-                        const elRect = el.getBoundingClientRect();
-                        const sidebarRect = sidebar.getBoundingClientRect();
-                        const stickyHeader = sidebar.querySelector('.sticky');
-                        const headerOffset = stickyHeader ? stickyHeader.getBoundingClientRect().height : 100;
-
-                        const targetTop = sidebar.scrollTop + (elRect.top - sidebarRect.top) - headerOffset - 20;
-                        sidebar.scrollTo({ top: targetTop, behavior: 'smooth' });
-                    } else if (internalList && internalList.scrollHeight > internalList.clientHeight) {
-                        const elRect = el.getBoundingClientRect();
-                        const listRect = internalList.getBoundingClientRect();
-                        const targetTop = internalList.scrollTop + (elRect.top - listRect.top) - 8;
-                        internalList.scrollTo({ top: targetTop, behavior: 'smooth' });
-                    }
-                } else {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const scrollToElement = (id: string, containerId?: string) => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (containerId === 'summary-list') {
+                const list = document.getElementById(containerId);
+                if (list) {
+                    const elRect = el.getBoundingClientRect();
+                    const listRect = list.getBoundingClientRect();
+                    list.scrollTo({ top: list.scrollTop + (elRect.top - listRect.top) - 8, behavior: 'smooth' });
                 }
-            } else if (retryCount < 10) {
-                setTimeout(() => tryScroll(retryCount + 1), 100);
+            } else {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-        };
-
-        setTimeout(() => tryScroll(0), 50);
+        }
     };
-
-    const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const url = e.target.value;
-        setDocUrl(url);
-        if (isUrlInvalid) setIsUrlInvalid(false);
-    };
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === '[') {
-                if (activeChapterId) {
-                    e.preventDefault();
-                    handleBackToOutline();
-                }
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activeChapterId]);
 
     const handleBackToOutline = () => {
         const idToTarget = activeChapterId;
@@ -193,20 +122,17 @@ export function Dashboard() {
     };
 
     const handleReset = () => {
-        if (structure && !confirm("현재 선택 및 작업 내용이 초기화됩니다. 처음으로 돌아가시겠습니까?")) return;
+        if (structure && !confirm("모든 작업 내용을 초기화하시겠습니까?")) return;
         setIsLoaded(false);
         setIsInputFolded(false);
         setDocUrl("");
         setStructure(null);
-        setResizeStatus("idle");
-        setResultMsg("");
-        setIsUrlInvalid(false);
-        setWarningMsg("");
-        setIsSummaryExpanded(false);
+        setSelectedImageIds([]);
+        setSelectedScopes([]);
     };
 
     const syncDoc = async (silent = false) => {
-        if (!structure?.id || loading || isSyncing) return;
+        if (!structure?.id || isSyncing) return;
         if (!silent) setIsSyncing(true);
         try {
             const res = await fetch("/api/doc/structure", {
@@ -216,47 +142,22 @@ export function Dashboard() {
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-
-            const allNewImageIds = new Set(data.items.flatMap((item: any) => item.images.map((img: any) => img.id)));
-            const allNewScopeStarts = new Set(data.items.map((item: any) => item.startIndex));
-
-            setSelectedImageIds(prev => prev.filter(id => allNewImageIds.has(id)));
-            setSelectedScopes(prev => prev.filter(s => allNewScopeStarts.has(s.start)));
-
             setStructure({ ...data, id: structure.id });
             setLastSyncTime(new Date());
             if (!silent) {
-                setSuccessMsg("문서 상태가 성공적으로 동기화되었습니다!");
+                setSuccessMsg("동기화 완료!");
                 setShowSuccess(true);
             }
         } catch (e: any) {
             console.error("Sync error:", e);
-            if (!silent) alert("동기화 중 오류가 발생했습니다: " + e.message);
         } finally {
             setIsSyncing(false);
         }
     };
 
-    useEffect(() => {
-        const handleFocus = () => {
-            if (isLoaded && structure?.id) {
-                syncDoc(true);
-            }
-        };
-        window.addEventListener('focus', handleFocus);
-        return () => window.removeEventListener('focus', handleFocus);
-    }, [isLoaded, structure?.id]);
-
     const fetchStructure = async () => {
-        if (!docUrl.includes("docs.google.com/document/d/")) {
-            setWarningMsg("올바른 Google Docs URL을 입력해주세요.");
-            setShowWarning(true);
-            setIsUrlInvalid(true);
-            return;
-        }
-        let docId = docUrl;
         const match = docUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-        if (match) docId = match[1];
+        const docId = match ? match[1] : docUrl;
         if (!docId) return;
 
         setLoading(true);
@@ -270,492 +171,310 @@ export function Dashboard() {
             if (data.error) throw new Error(data.error);
             setStructure({ ...data, id: docId });
             setIsLoaded(true);
-            setSelectedScopes([]);
-            setSelectedImageIds([]);
             setLastSyncTime(new Date());
-            setSuccessMsg("문서 목차를 성공적으로 불러왔습니다!");
-            setShowSuccess(true);
         } catch (e: any) {
             alert(e.message);
         } finally {
             setLoading(false);
-            setActiveChapterId(null);
         }
     };
 
-    const handleResize = async (customConfig?: { width: number, imageIds?: string[] }) => {
-        if (!structure || resizeStatus === "processing") return;
-
-        const imageIds = customConfig?.imageIds || (selectedImageIds.length > 0 ? selectedImageIds : []);
-        if (imageIds.length === 0) {
-            setWarningMsg("크기를 조절할 이미지를 선택해주세요.");
+    const handleResize = async () => {
+        if (!structure || isProcessing) return;
+        if (selectedImageIds.length === 0) {
+            setWarningMsg("이미지를 선택해주세요.");
             setShowWarning(true);
             return;
         }
 
-        setResizeStatus("processing");
         setIsProcessing(true);
-        setResultMsg("");
         setResizeProgress(0);
-        setResizeStats({ success: 0, failed: 0, total: imageIds.length });
+        setResizeStats({ success: 0, failed: 0, total: selectedImageIds.length });
 
-        const CHUNK_SIZE = 8; // Reduced slightly for even higher stability
-        let finalSuccess = 0;
-        let finalFailed = 0;
-        const newMapping: Record<string, string> = {};
+        let currentSuccess = 0;
+        let currentFailed = 0;
+        const mapping: Record<string, string> = {};
 
-        try {
-            for (let i = 0; i < imageIds.length; i += CHUNK_SIZE) {
-                const chunkIds = imageIds.slice(i, i + CHUNK_SIZE);
+        // Sequential Atomic Queue (v7.0)
+        for (let i = 0; i < selectedImageIds.length; i++) {
+            const imageId = selectedImageIds[i];
+            setCurrentImageContext(`이미지 ${i + 1} 처리 중...`);
+
+            try {
                 const res = await fetch("/api/doc/resize", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         docId: structure.id,
-                        targetWidthCm: customConfig ? customConfig.width : targetWidth,
-                        selectedImageIds: chunkIds,
+                        targetWidthCm: targetWidth,
+                        imageId: imageId,
                     }),
                 });
 
-                if (!res.ok) {
-                    finalFailed += chunkIds.length;
-                    continue;
-                }
-
-                const data = await res.json();
-                if (data.success) {
-                    finalSuccess += data.results.success;
-                    finalFailed += data.results.failed;
-                    if (data.newIdMapping) Object.assign(newMapping, data.newIdMapping);
+                const result = await res.json();
+                if (result.success) {
+                    currentSuccess++;
+                    mapping[imageId] = result.newId;
                 } else {
-                    finalFailed += chunkIds.length;
+                    currentFailed++;
                 }
-
-                const currentProgress = Math.min(Math.round(((i + chunkIds.length) / imageIds.length) * 100), 100);
-                setResizeProgress(currentProgress);
-                setResizeStats({ success: finalSuccess, failed: finalFailed, total: imageIds.length });
-
-                // Add a small delay between chunks to prevent API rate limiting
-                if (i + CHUNK_SIZE < imageIds.length) {
-                    await new Promise(resolve => setTimeout(resolve, 600));
-                }
+            } catch (e) {
+                currentFailed++;
             }
 
-            // Update local state with new IDs to prevent ghost images
-            if (Object.keys(newMapping).length > 0) {
-                setSelectedImageIds(prev => prev.map(id => newMapping[id] || id));
-                if (structure) {
-                    const newStructure = { ...structure };
-                    newStructure.items = newStructure.items.map((item: any) => ({
-                        ...item,
-                        images: item.images.map((img: any) => ({
-                            ...img,
-                            id: newMapping[img.id] || img.id
-                        }))
-                    }));
-                    setStructure(newStructure);
-                }
-            }
+            const progress = Math.round(((i + 1) / selectedImageIds.length) * 100);
+            setResizeProgress(progress);
+            setResizeStats({ success: currentSuccess, failed: currentFailed, total: selectedImageIds.length });
 
-            setResizeStatus("success");
-            setSuccessMsg(`${finalSuccess}개 이미지 조절 완료! (${finalFailed}개 실패)`);
-            setShowSuccess(true);
-            await syncDoc(true); // Silent sync after finishing all batches
-        } catch (error: any) {
-            setResizeStatus("error");
-            setResultMsg(error.message || "오류가 발생했습니다.");
-        } finally {
-            setIsProcessing(false);
+            // Critical: Small pause to allow Google Docs to sync its internal state
+            await new Promise(r => setTimeout(r, 800));
         }
+
+        // Final UI Update with new IDs
+        setSelectedImageIds(prev => prev.map(id => mapping[id] || id));
+        await syncDoc(true);
+
+        setIsProcessing(false);
+        setSuccessMsg(`${currentSuccess}개 처리 완료!`);
+        setShowSuccess(true);
     };
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
             <AnimatePresence>
-                {showGuide && <GuideModal isOpen={showGuide} onClose={closeGuide} />}
+                {showGuide && <GuideModal isOpen={showGuide} onClose={() => setShowGuide(false)} />}
                 {showWarning && <WarningModal isOpen={showWarning} onClose={() => setShowWarning(false)} message={warningMsg} />}
+                {showSuccess && <SuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} message={successMsg} />}
             </AnimatePresence>
-            {/* v4.0 Processing Overlay */}
+
+            {/* v7.0 Atomic Processing Overlay */}
             <AnimatePresence>
                 {isProcessing && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-indigo-950/80 backdrop-blur-md flex items-center justify-center p-6">
-                        <motion.div
-                            initial={{ scale: 0.9, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.9, y: 20 }}
-                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                            className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center space-y-6"
-                        >
-                            <div className="relative w-24 h-24 mx-auto">
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-6">
+                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-[2rem] shadow-2xl p-10 max-w-md w-full text-center space-y-8 border border-white/20">
+                            <div className="relative w-32 h-32 mx-auto">
                                 <svg className="w-full h-full rotate-[-90deg]">
-                                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100" />
-                                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * resizeProgress) / 100} className="text-indigo-600 transition-all duration-500" strokeLinecap="round" />
+                                    <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-slate-100" />
+                                    <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" strokeDasharray={364.4} strokeDashoffset={364.4 - (364.4 * resizeProgress) / 100} className="text-indigo-600 transition-all duration-700" strokeLinecap="round" />
                                 </svg>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-xl font-black text-indigo-600">{resizeProgress}%</span>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-3xl font-black text-indigo-600 leading-none">{resizeProgress}%</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">Progress</span>
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-black text-gray-900">이미지 규격화 작업 중...</h3>
-                                <p className="text-sm text-gray-500">대용량 문서의 경우 다소 시간이 소요될 수 있습니다.</p>
+                                <h3 className="text-2xl font-black text-slate-900 leading-tight tracking-tight">Quantum Atomic Sync</h3>
+                                <p className="text-sm text-slate-500 font-medium">{currentImageContext}</p>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-green-50 rounded-2xl p-3 border border-green-100">
-                                    <div className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">성공</div>
-                                    <div className="text-xl font-black text-green-700">{resizeStats.success}</div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
+                                    <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Success</div>
+                                    <div className="text-2xl font-black text-emerald-700">{resizeStats.success}</div>
                                 </div>
-                                <div className="bg-red-50 rounded-2xl p-3 border border-red-100">
-                                    <div className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">실패</div>
-                                    <div className="text-xl font-black text-red-700">{resizeStats.failed}</div>
+                                <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100">
+                                    <div className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Failed</div>
+                                    <div className="text-2xl font-black text-rose-700">{resizeStats.failed}</div>
                                 </div>
                             </div>
-                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] animate-pulse">
-                                처리 중: {resizeStats.success + resizeStats.failed} / {resizeStats.total}
+                            <div className="bg-slate-50 rounded-xl py-3 px-4 flex items-center justify-center space-x-2">
+                                <div className="flex space-x-1">
+                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" />
+                                </div>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Syncing with Google Docs...</span>
                             </div>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
-            <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+
+            <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
                 <div className="flex items-center space-x-3 cursor-pointer group" onClick={handleReset}>
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform relative">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold group-hover:rotate-12 transition-all relative shadow-lg shadow-indigo-100">
                         G
-                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" title="v6.0 Crystal Engine Active" />
+                        <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-500 rounded-full border-2 border-white animate-pulse shadow-[0_0_12px_rgba(59,130,246,0.6)]" title="v7.0 Quantum Stable Active" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-bold text-lg tracking-tight group-hover:text-indigo-600 transition-colors leading-none">Docs Resizer ✨</span>
-                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mt-0.5 flex items-center">
-                            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1.5 animate-pulse" />
-                            v6.0 Micro-Batch Crystal
+                        <span className="font-black text-xl tracking-tighter text-slate-900 leading-none">Docs Resizer ✨</span>
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-1 flex items-center">
+                            v7.0 Quantum Atomic Sync
                         </span>
                     </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                    <div className="relative">
-                        <div className="opacity-0 px-3 py-1.5 flex items-center pointer-events-none select-none" aria-hidden="true"><div className="w-4 h-4 mr-1.5" />사용 방법</div>
-                        <AnimatePresence>
-                            {!showGuide && (
-                                <motion.button layoutId="guide-modal-trigger" onClick={() => setShowGuide(true)} className="absolute inset-0 w-full h-full text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors flex items-center z-10">
-                                    <motion.span layoutId="guide-icon" className="flex items-center"><CheckCircle className="w-4 h-4 mr-1.5" /></motion.span>
-                                    <motion.span layoutId="guide-text">사용 방법</motion.span>
-                                </motion.button>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                    <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-gray-100 rounded-full">
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden border border-gray-200">
-                            {session?.user?.image && !imgError ? <img src={session.user.image} alt="User" className="w-full h-full object-cover" onError={() => setImgError(true)} /> : <User className="w-4 h-4 text-gray-400" />}
+                    <button onClick={() => setShowGuide(true)} className="text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-full transition-colors flex items-center"><HelpCircle className="w-4 h-4 mr-2" />도움말</button>
+                    <div className="hidden md:flex items-center space-x-2 px-3 py-1.5 bg-slate-100 rounded-full">
+                        <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border border-white shadow-sm">
+                            {session?.user?.image && !imgError ? <img src={session.user.image} alt="User" className="w-full h-full object-cover" onError={() => setImgError(true)} /> : <User className="w-4 h-4 text-slate-400" />}
                         </div>
-                        <span className="text-sm font-medium text-gray-700">{session?.user?.name}</span>
+                        <span className="text-sm font-bold text-slate-700">{session?.user?.name}</span>
                     </div>
-                    <button onClick={() => signOut()} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="로그아웃"><LogOut className="w-5 h-5" /></button>
+                    <button onClick={() => signOut()} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="로그아웃"><LogOut className="w-5 h-5" /></button>
                 </div>
             </header>
 
-            <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 py-8">
-                <AnimatePresence>{showSuccess && <SuccessModal isOpen={showSuccess} onClose={() => setShowSuccess(false)} message={successMsg} />}</AnimatePresence>
-                <div className="grid md:grid-cols-12 gap-8">
-                    {/* Left Col: Setup - Sticky Sidebar */}
-                    <div id="sidebar-container" className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-4'} space-y-4 md:sticky md:top-24 max-h-[calc(100vh-120px)] overflow-y-auto custom-scrollbar pr-1 hidden-scrollbar md:block overscroll-contain`}>
-                        <div className="space-y-4">
-                            <AnimatePresence>
-                                {!isSummaryExpanded && !structure && (
-                                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-3 mb-4">
-                                        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-900 shadow-sm relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-2 opacity-5"><FileText className="w-16 h-16" /></div>
-                                            <h3 className="font-bold mb-2 flex items-center text-blue-800"><CheckCircle className="w-4 h-4 mr-2 text-blue-600" />시작하기 전에 확인해 주세요!</h3>
-                                            <ul className="space-y-1.5 pl-1 z-10 relative text-[11px] leading-relaxed">
-                                                <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">1.</span><span>수정하려는 문서의 <strong className="font-bold">편집 권한</strong>이 있는지 확인해주세요.</span></li>
-                                                <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">2.</span><span>문서 내에 <strong className="font-bold">직접 삽입된 이미지</strong>만 크기 조절이 가능합니다.</span></li>
-                                                <li className="flex items-start"><span className="mr-2 text-blue-400 font-bold">3.</span><span>챕터별 기능을 사용하려면 <strong className="font-bold">제목 스타일</strong>을 적용해야 합니다.</span></li>
-                                            </ul>
-                                        </div>
-                                        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-start">
-                                            <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center mr-3 flex-shrink-0"><ShieldCheck className="w-4 h-4 text-green-600" /></div>
-                                            <div><h4 className="font-bold text-gray-900 mb-0.5 text-xs">안전한 데이터 처리</h4><p className="text-[10px] text-gray-500 leading-tight">모든 이미지 처리는 사용자의 구글 드라이브 권한 내에서만 안전하게 수행됩니다.</p></div>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-
-                            <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 transition-all duration-300 ${isSummaryExpanded ? 'opacity-90 hover:opacity-100' : ''}`}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <h2 className="text-base font-bold flex items-center"><FileText className="w-4 h-4 mr-2 text-indigo-500" />1. 문서 선택</h2>
-                                    <div className="flex items-center space-x-2">
-                                        <AnimatePresence>
-                                            {isLoaded && (
-                                                <motion.div key="sync-group" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center space-x-1.5 bg-gray-50/80 p-1 rounded-full border border-gray-100">
-                                                    <button onClick={() => syncDoc()} disabled={isSyncing} className={`text-[10px] flex items-center px-2 py-1 rounded-full font-bold transition-all ${isSyncing ? 'text-indigo-400 opacity-50' : 'bg-white hover:bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'}`} title={`마지막 동기화: ${lastSyncTime?.toLocaleTimeString() || '-'}`}>
-                                                        <RefreshCw className={`w-3 h-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-                                                        {isSyncing ? "동기화 중..." : "동기화"}
-                                                    </button>
-                                                    <button onClick={handleReset} className="text-[10px] flex items-center bg-white hover:bg-gray-100 text-gray-500 px-2 py-1 rounded-full border border-gray-100 transition-colors font-bold">다른 문서</button>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                        {structure && (<button onClick={() => setIsInputFolded(!isInputFolded)} className="p-1 hover:bg-gray-100 rounded text-gray-400"><ChevronUp className={`w-4 h-4 transition-transform duration-300 ${isInputFolded ? 'rotate-180' : ''}`} /></button>)}
-                                    </div>
-                                </div>
-                                <AnimatePresence>
-                                    {!isInputFolded && (
-                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                            <div className="space-y-4 pt-2">
-                                                <div>
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">문서 URL / ID</label>
-                                                    <div className="mt-1.5 relative">
-                                                        <input type="text" value={docUrl} onChange={handleUrlChange} placeholder="https://docs.google.com/document/d/..." className={`w-full pl-3 pr-8 py-2.5 rounded-xl border text-sm outline-none transition-all ${isUrlInvalid ? 'bg-red-50 border-red-200 focus:ring-red-100' : 'bg-gray-50 border-gray-100 focus:border-indigo-300'}`} />
-                                                        {docUrl && <button onClick={() => setDocUrl("")} className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">×</button>}
-                                                    </div>
-                                                </div>
-                                                <button onClick={fetchStructure} disabled={loading || !docUrl} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "문서 불러오기"}</button>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                                {resultMsg && resizeStatus === 'error' && <div className="mt-4 p-3 rounded-lg text-sm flex items-center bg-red-50 text-red-700">{resultMsg}</div>}
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-10">
+                <div className="grid md:grid-cols-12 gap-10">
+                    {/* Setup Panel */}
+                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-5' : 'md:col-span-4'} space-y-6 md:sticky md:top-28 max-h-[calc(100vh-140px)] overflow-y-auto hidden-scrollbar`}>
+                        <div className="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-100/50 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-lg font-black flex items-center text-slate-900"><FileText className="w-5 h-5 mr-2 text-indigo-500" />문서 설정</h2>
+                                {isLoaded && <button onClick={handleReset} className="text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-widest transition-colors">초기화</button>}
                             </div>
-                        </div>
 
-                        {structure && (
-                            <div className={`bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 flex flex-col space-y-3 sticky top-0 z-20 transition-all ${isSummaryExpanded ? 'opacity-90 hover:opacity-100 mt-2' : ''}`}>
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-sm font-bold flex items-center text-gray-800"><Layout className="w-3.5 h-3.5 mr-1.5 text-indigo-500" />2. 환경 설정</h2>
-                                    <div className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg font-mono font-black text-xl shadow-inner border border-indigo-100 flex items-center justify-center min-w-[70px]">{targetWidth}<span className="text-[10px] ml-0.5 opacity-50 font-sans">cm</span></div>
+                            {!isLoaded ? (
+                                <div className="space-y-4">
+                                    <div className="relative">
+                                        <input type="text" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} placeholder="구글 문서 URL을 입력하세요" className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:border-indigo-400 focus:bg-white outline-none transition-all text-sm font-medium" />
+                                        <Search className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                                    </div>
+                                    <button onClick={fetchStructure} disabled={loading || !docUrl} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 transition-all flex items-center justify-center">{loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "문서 분석 시작"}</button>
                                 </div>
-                                <div className="flex items-center space-x-4 bg-gray-50/50 p-2 rounded-xl border border-gray-50">
-                                    <input type="range" min="5" max="20" step="0.5" value={targetWidth} onChange={(e) => setTargetWidth(Number(e.target.value))} className="flex-1 accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
-                                    <div className="flex flex-col items-end min-w-[50px]"><span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter mb-0.5">이미지</span><div className="flex items-center text-[10px] font-bold text-gray-700">{selectedImageIds.length > 0 ? `${selectedImageIds.length}개` : selectedScopes.length === 0 ? "전체" : `${selectedScopes.length}개`}</div></div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <button onClick={() => handleResize()} disabled={resizeStatus === "processing"} className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-[11px] shadow-md shadow-indigo-100 transition-all flex items-center justify-center space-x-2">
-                                        {resizeStatus === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : <><RefreshCw className="w-3 h-3" /><span>크기 조정</span></>}
+                            ) : (
+                                <div className="space-y-6">
+                                    <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-100">
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Document</span>
+                                            <h3 className="font-bold text-slate-900 truncate text-sm">{structure.title}</h3>
+                                        </div>
+                                        <button onClick={() => syncDoc()} disabled={isSyncing} className={`p-2 rounded-xl transition-all ${isSyncing ? 'text-indigo-400 animate-spin' : 'text-slate-400 hover:text-indigo-600 hover:bg-white border-transparent'}`}><RefreshCw className="w-5 h-5" /></button>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">규격 선택 (cm)</span>
+                                            <span className="px-3 py-1 bg-indigo-600 text-white rounded-lg font-black text-lg">{targetWidth}</span>
+                                        </div>
+                                        <input type="range" min="5" max="20" step="0.5" value={targetWidth} onChange={(e) => setTargetWidth(Number(e.target.value))} className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                                    </div>
+
+                                    <button onClick={handleResize} disabled={isProcessing || selectedImageIds.length === 0} className="w-full py-4 bg-slate-900 hover:bg-black disabled:bg-slate-200 text-white rounded-2xl font-black text-sm shadow-xl shadow-slate-200 transition-all flex items-center justify-center space-x-2">
+                                        <RefreshCw className={`w-5 h-5 ${isProcessing ? 'animate-spin' : ''}`} />
+                                        <span>{selectedImageIds.length}개 이미지 규격화</span>
                                     </button>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
+                        {/* Summary List */}
                         <AnimatePresence>
-                            {structure && (selectedImageIds.length > 0 || selectedScopes.length > 0) && (
-                                <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }} className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mt-4 flex flex-col ${isSummaryExpanded ? 'min-h-[500px]' : 'max-h-[400px]'}`}>
-                                    <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                            {isLoaded && selectedImageIds.length > 0 && (
+                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-100/50 flex flex-col ${isSummaryExpanded ? 'min-h-[600px]' : 'max-h-[500px]'}`}>
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="font-black text-slate-900 flex items-center"><CheckCircle className="w-5 h-5 mr-2 text-emerald-500" />작업 큐</h3>
                                         <div className="flex items-center space-x-2">
-                                            <h2 className="text-base font-bold flex items-center"><CheckCircle className="w-4 h-4 mr-2 text-green-500" />항목 요약</h2>
-                                            <button onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} className={`p-1.5 rounded-lg transition-all ${isSummaryExpanded ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`} title={isSummaryExpanded ? "기본 보기" : "길게 보기"}>{isSummaryExpanded ? <Columns className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}</button>
+                                            <button onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} className="p-2 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-lg"><Maximize2 className="w-4 h-4" /></button>
+                                            <button onClick={() => setSelectedImageIds([])} className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Clear</button>
                                         </div>
-                                        <button onClick={() => { setSelectedImageIds([]); setSelectedScopes([]); }} className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-tighter bg-gray-50 px-2 py-1 rounded-md transition-colors">전체 선택 해제</button>
                                     </div>
-
-                                    <div id="summary-list" className={`flex-1 ${isSummaryExpanded ? 'overflow-visible' : 'overflow-y-auto'} pr-2 custom-scrollbar overscroll-contain space-y-4`}>
-                                        {(() => {
-                                            if (!structure || selectedImageIds.length === 0) return <div className="text-center py-24 text-gray-300"><ImageIcon className="w-12 h-12 mx-auto mb-4 opacity-10" /><p className="text-sm font-bold">선택된 이미지가 없습니다.</p></div>;
-
-                                            const isHeadingVisibleInSummary = (item: any) => {
-                                                const hasSelectedImages = item.images.some((img: any) => selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id);
-                                                if (hasSelectedImages) return true;
-                                                const idx = structure.items.indexOf(item);
-                                                for (let i = idx + 1; i < structure.items.length; i++) {
-                                                    const next = structure.items[i];
-                                                    if (next.level > item.level) {
-                                                        const hasSelectedDescImages = next.images.some((img: any) => selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === next.id);
-                                                        if (hasSelectedDescImages) return true;
-                                                    } else break;
-                                                }
-                                                return false;
-                                            };
-
-                                            return structure.items.map((item: any) => {
-                                                if (!isHeadingVisibleInSummary(item)) return null;
-                                                const chapterImages = item.images.filter((img: any) => selectedImageIds.includes(img.id) && imageToHeadingMap[img.uri] === item.id);
-                                                const hierarchy = getImageHierarchy(item.images[0]?.id || "");
-                                                const isTopLevel = item.level <= 2;
-
-                                                return (
-                                                    <div key={item.id} id={`summary-heading-${item.id}`} className={`${isTopLevel ? 'bg-indigo-50/50' : 'bg-white border-dashed'} rounded-2xl p-4 border border-indigo-100/50 space-y-4 shadow-sm transition-all`}>
-                                                        <div className="space-y-1.5 min-w-0 flex-1">
-                                                            <div className="flex items-center space-x-2 min-w-0 w-full">
-                                                                <div className={`w-1.5 h-1.5 rounded-full ${isTopLevel ? 'bg-indigo-600' : 'bg-indigo-300'} shrink-0`} />
-                                                                <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                                                                    {hierarchy && hierarchy.length > 1 && !isTopLevel && (
-                                                                        <div className="flex items-center space-x-1.5 opacity-60 mb-0.5 overflow-hidden">
-                                                                            <span className="text-[8px] font-black text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded uppercase tracking-tighter truncate max-w-[120px]">{hierarchy[hierarchy.length - 2]}</span>
-                                                                            <ChevronRight className="w-2 h-2 text-indigo-300 shrink-0" />
-                                                                        </div>
-                                                                    )}
-                                                                    <h4 className={`font-black tracking-tight truncate w-full ${isTopLevel ? 'text-indigo-950 text-xs' : 'text-indigo-900 text-[11px]'}`} title={item.title}>{item.title}</h4>
-                                                                </div>
+                                    <div id="summary-list" className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                                        {structure.items.map((item: any) => {
+                                            const chapterImgs = item.images.filter((img: any) => selectedImageIds.includes(img.id));
+                                            if (chapterImgs.length === 0) return null;
+                                            return (
+                                                <div key={item.id} className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 space-y-3">
+                                                    <h4 className="text-[11px] font-black text-slate-400 truncate">{item.title}</h4>
+                                                    <div className="grid grid-cols-5 gap-2">
+                                                        {chapterImgs.map((img: any) => (
+                                                            <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200">
+                                                                <img src={img.uri} className="w-full h-full object-cover" />
+                                                                <button onClick={() => setSelectedImageIds(prev => prev.filter(id => id !== img.id))} className="absolute inset-0 bg-rose-600/80 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-black">X</button>
                                                             </div>
-                                                        </div>
-                                                        {chapterImages.length > 0 && (
-                                                            <div className={`grid gap-3 grid-cols-4`}>
-                                                                {chapterImages.map((img: any) => (
-                                                                    <button key={img.id} id={`summary-img-${img.id}`} onClick={() => {
-                                                                        setSelectedImageIds(prev => prev.filter(pid => pid !== img.id));
-                                                                        scrollToElement(`detail-img-${img.id}`, undefined, { type: 'chapter', id: item.id });
-                                                                    }} className="group relative aspect-square bg-white rounded-xl overflow-hidden border border-indigo-100 hover:border-red-300 transition-all shadow-md">
-                                                                        <img src={img.uri} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
-                                                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded shadow-lg transform scale-0 group-hover:scale-100 transition-transform">삭제</div></div>
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                        ))}
                                                     </div>
-                                                );
-                                            });
-                                        })()}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
                     </div>
 
-                    {/* Right Col: Outline / Content */}
-                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-6' : 'md:col-span-8'} block space-y-4`}>
+                    {/* Content Panel */}
+                    <div className={`transition-all duration-500 ${isSummaryExpanded ? 'md:col-span-7' : 'md:col-span-8'} space-y-6`}>
                         {structure ? (
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col relative min-h-[600px] overflow-hidden">
-                                <div className="sticky top-[73px] z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm px-4">
+                            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100/50 overflow-hidden min-h-[700px] flex flex-col">
+                                <div className="sticky top-[89px] z-30 bg-white/90 backdrop-blur-xl border-b border-slate-100 p-6">
                                     {!activeChapterId ? (
-                                        <div className="py-5"><h2 className="text-base font-black text-gray-900 truncate leading-tight">{structure.title}</h2><p className="text-[11px] text-gray-500 mt-1">상세 조절을 위해 아래 챕터를 선택해 주세요.</p></div>
+                                        <div className="space-y-1">
+                                            <h2 className="text-2xl font-black text-slate-900 tracking-tight">{structure.title}</h2>
+                                            <p className="text-sm text-slate-500 font-medium">문서 내 이미지를 분석하고 규격화할 항목을 선택해주세요.</p>
+                                        </div>
                                     ) : (
-                                        <div className="divide-y divide-gray-100 bg-white">
-                                            {/* Header Row: v3.7 Optimized Grid */}
-                                            <div className="grid items-center p-3 min-h-[64px] bg-white relative overflow-hidden" style={{ gridTemplateColumns: '110px 1fr 110px', gap: '0px' }}>
-                                                {/* Left Column: Fixed 110px */}
-                                                <div style={{ minWidth: '0px', paddingRight: '4px' }}>
-                                                    <button onClick={handleBackToOutline} className="flex items-center justify-center w-full py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 transition-all text-[11px] font-bold shadow-sm group">
-                                                        <ChevronLeft className="w-3.5 h-3.5 mr-0.5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
-                                                        목차
-                                                    </button>
-                                                </div>
-
-                                                {/* Center Column: Title (Flexible with Truncate) */}
-                                                <div className="flex flex-col items-center justify-center min-w-0 px-3 flex-1 overflow-hidden">
-                                                    <h3 className="text-[14px] font-black text-gray-900 leading-none text-center" style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={structure.items.find((it: any) => it.id === activeChapterId)?.title}>
-                                                        {structure.items.find((it: any) => it.id === activeChapterId)?.title}
-                                                    </h3>
-                                                    <div className="mt-1 flex items-center space-x-1.5 overflow-hidden">
-                                                        <span className="shrink-0 w-1 h-1 bg-blue-400 rounded-full" />
-                                                        <span className="text-gray-400 text-[9px] font-bold uppercase tracking-wider truncate">챕터 상세 조절 (엔진 v6.0 Crystal)</span>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-4 min-w-0 flex-1">
+                                                <button onClick={handleBackToOutline} className="p-3 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-2xl transition-all shadow-sm"><ChevronLeft className="w-5 h-5" /></button>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-lg font-black text-slate-900 truncate leading-none">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3>
+                                                    <div className="mt-1 flex items-center space-x-2">
+                                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CHAPTER SYNC ACTIVE</span>
                                                     </div>
-                                                </div>
-
-                                                {/* Right Column: Fixed 110px */}
-                                                <div style={{ minWidth: '0px', paddingLeft: '4px' }}>
-                                                    <button onClick={() => {
-                                                        const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                        if (!currentChapter) return;
-                                                        const allIds = currentChapter.images.map((img: any) => img.id);
-                                                        const areAllSelected = allIds.every((id: string) => selectedImageIds.includes(id));
-                                                        if (areAllSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
-                                                        else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
-                                                    }} className={`flex items-center justify-center w-full py-2.5 rounded-xl transition-all text-[11px] font-bold shadow-sm ${(() => {
-                                                        const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                        const allIds = currentChapter?.images.map((img: any) => img.id) || [];
-                                                        return allIds.every((id: string) => selectedImageIds.includes(id));
-                                                    })()
-                                                        ? 'bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100'
-                                                        : 'bg-indigo-600 border border-transparent text-white hover:bg-indigo-800 shadow-indigo-100'
-                                                        }`}>
-                                                        {(() => {
-                                                            const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                            const allIds = currentChapter?.images.map((img: any) => img.id) || [];
-                                                            return allIds.every((id: string) => selectedImageIds.includes(id)) ? "선택 해제" : "전체 선택";
-                                                        })()}
-                                                    </button>
                                                 </div>
                                             </div>
-
-                                            {/* Sub-Header: Toolbar */}
-                                            <div className="flex items-center justify-between py-2 px-4 bg-gray-50/50">
-                                                <div className="flex items-center bg-gray-100/50 rounded-xl p-1">
-                                                    <button onClick={() => setViewMode('grid')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Grid3X3 className="w-3.5 h-3.5 mr-1.5" />그리드</button>
-                                                    <button onClick={() => setViewMode('carousel')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Maximize2 className="w-3.5 h-3.5 mr-1.5" />캐러셀</button>
+                                            <div className="flex items-center space-x-3">
+                                                <div className="bg-slate-100 p-1 rounded-xl flex">
+                                                    <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}><Grid3X3 className="w-5 h-5" /></button>
+                                                    <button onClick={() => setViewMode('carousel')} className={`p-2 rounded-lg transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}><Maximize2 className="w-5 h-5" /></button>
                                                 </div>
-                                                {viewMode === 'grid' && (
-                                                    <div className="flex items-center space-x-1.5">
-                                                        {[2, 3, 4, 5].map(num => (<button key={num} onClick={() => setGridCols(num)} className={`w-7 h-7 rounded-lg text-[11px] font-black transition-all flex items-center justify-center ${gridCols === num ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}>{num}</button>))}
-                                                    </div>
-                                                )}
+                                                <button onClick={() => {
+                                                    const current = structure.items.find((it: any) => it.id === activeChapterId);
+                                                    const allIds = current.images.map((img: any) => img.id);
+                                                    const allSelected = allIds.every((id: any) => selectedImageIds.includes(id));
+                                                    if (allSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
+                                                    else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
+                                                }} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-xs shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">전체 선택</button>
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                                <div className="p-6 pt-2 flex-1 relative">
-                                    <div className="absolute top-0 left-0 w-full h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
+
+                                <div className="p-8 flex-1">
                                     {activeChapterId ? (
-                                        <div>
+                                        <div className="space-y-12">
                                             {(() => {
-                                                const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                if (!currentChapter) return null;
-                                                if (currentChapter.images.length === 0) return <div className="p-12 text-center text-gray-400">이 챕터에는 조절 가능한 이미지가 없습니다.</div>;
+                                                const chapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                if (!chapter || chapter.images.length === 0) return <div className="flex flex-col items-center justify-center py-32 text-slate-300"><ImageIcon className="w-20 h-20 mb-6 opacity-20" /><p className="font-bold">이 챕터에는 분석 가능한 이미지가 없습니다.</p></div>;
+
                                                 if (viewMode === 'grid') {
-                                                    const currentIdx = structure.items.indexOf(currentChapter);
-                                                    const subItems = [currentChapter];
-                                                    for (let j = currentIdx + 1; j < structure.items.length; j++) {
-                                                        if (structure.items[j].level > currentChapter.level) subItems.push(structure.items[j]);
-                                                        else break;
-                                                    }
                                                     return (
-                                                        <div className="space-y-8">
-                                                            {subItems.map(item => {
-                                                                const filteredImages = item.images.filter((img: any) => imageToHeadingMap[img.uri] === item.id);
+                                                        <div className="grid gap-8" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
+                                                            {chapter.images.map((img: any) => {
+                                                                const isSelected = selectedImageIds.includes(img.id);
                                                                 return (
-                                                                    <div key={item.id} id={`detail-heading-${item.id}`} className="space-y-4 pt-4">
-                                                                        <div className="flex items-center space-x-2 border-b border-gray-50 pb-2">
-                                                                            <span className="text-[10px] items-center flex font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-widest">H{item.level}</span>
-                                                                            <h4 className="text-xs font-bold text-gray-700">{item.title}</h4>
+                                                                    <div key={img.id} onClick={() => {
+                                                                        if (isSelected) setSelectedImageIds(prev => prev.filter(id => id !== img.id));
+                                                                        else setSelectedImageIds(prev => [...prev, img.id]);
+                                                                    }} className={`group relative bg-white rounded-[2rem] overflow-hidden border-4 transition-all cursor-pointer shadow-xl active:scale-95 ${isSelected ? 'border-indigo-600 scale-[1.02]' : 'border-slate-50 hover:border-indigo-200'}`}>
+                                                                        <div className="aspect-square p-6 flex items-center justify-center bg-slate-50/50">
+                                                                            <img src={img.uri} className="max-h-full max-w-full rounded-xl shadow-2xl transition-transform group-hover:scale-110" />
                                                                         </div>
-                                                                        {filteredImages.length > 0 ? (
-                                                                            <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
-                                                                                {filteredImages.map((img: any) => {
-                                                                                    const isImgSelected = selectedImageIds.includes(img.id);
-                                                                                    const originalIdx = item.images.findIndex((i: any) => i.id === img.id);
-                                                                                    return (
-                                                                                        <div key={img.id} onClick={() => {
-                                                                                            if (isImgSelected) setSelectedImageIds(prev => prev.filter(id => id !== img.id));
-                                                                                            else setSelectedImageIds(prev => [...prev, img.id]);
-                                                                                            scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
-                                                                                        }} className={`group relative bg-white rounded-2xl overflow-hidden border-2 transition-all cursor-pointer shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 ${isImgSelected ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-indigo-100' : 'border-gray-100 hover:border-indigo-200'}`}>
-                                                                                            <div className="relative aspect-video flex items-center justify-center p-3">
-                                                                                                <img src={img.uri} className="max-h-full max-w-full rounded shadow-sm group-hover:scale-110 transition-transform object-contain" />
-                                                                                                <div className={`absolute top-2 left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isImgSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white/80 border-gray-300'}`}>
-                                                                                                    {isImgSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                                                                                                </div>
-                                                                                            </div>
-                                                                                            <div className="p-2 bg-white border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
-                                                                                                <span className="truncate">#{originalIdx + 1} ({img.type})</span>
-                                                                                                {isImgSelected && <CheckCircle className="w-3 h-3 text-indigo-600" />}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="text-[10px] text-gray-300 italic pl-6">이 항목에는 직속 이미지가 없습니다. (하위 항목 확인)</div>
-                                                                        )}
+                                                                        <div className="p-4 bg-white border-t border-slate-50 flex items-center justify-between">
+                                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type: {img.type}</span>
+                                                                            {isSelected && <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg"><CheckCircle className="w-3 h-3 text-white" /></div>}
+                                                                        </div>
                                                                     </div>
                                                                 );
                                                             })}
                                                         </div>
                                                     );
                                                 } else {
-                                                    const activeImg = currentChapter.images[carouselIndex] || currentChapter.images[0];
-                                                    const isActiveSelected = selectedImageIds.includes(activeImg.id);
+                                                    const mainImg = chapter.images[carouselIndex] || chapter.images[0];
                                                     return (
-                                                        <div className="space-y-8">
-                                                            <div className="relative aspect-video bg-gray-50 rounded-3xl border border-gray-100 flex items-center justify-center p-8 overflow-hidden group">
-                                                                <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px] opacity-30" /><motion.img key={activeImg.id} src={activeImg.uri} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-h-full max-w-full relative z-10 rounded-xl shadow-2xl" />
-                                                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20"><button onClick={() => {
-                                                                    if (isActiveSelected) setSelectedImageIds(prev => prev.filter(id => id !== activeImg.id));
-                                                                    else setSelectedImageIds(prev => [...prev, activeImg.id]);
-                                                                    scrollToElement(`summary-heading-${currentChapter.id}`, 'summary-list');
-                                                                }} className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${isActiveSelected ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border shadow-sm'}`}>{isActiveSelected ? "선택 해제" : "현재 이미지 선택"}</button></div>
+                                                        <div className="space-y-10">
+                                                            <div className="relative aspect-[16/10] bg-slate-900 rounded-[3rem] p-12 flex items-center justify-center overflow-hidden shadow-2xl">
+                                                                <div className="absolute inset-0 bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
+                                                                <img src={mainImg.uri} className="max-h-full max-w-full relative z-10 rounded-2xl shadow-[0_40px_100px_rgba(0,0,0,0.5)] border border-white/10" />
                                                             </div>
-                                                            <div className="flex overflow-x-auto pb-4 gap-3 custom-scrollbar">
-                                                                {currentChapter.images.map((img: any, i: number) => {
-                                                                    const isImgSelected = selectedImageIds.includes(img.id);
-                                                                    const isActive = carouselIndex === i;
-                                                                    return (<button key={img.id} onClick={() => setCarouselIndex(i)} className={`relative flex-shrink-0 w-24 h-24 rounded-2xl border-2 transition-all p-2 overflow-hidden ${isActive ? 'border-indigo-500 ring-4 ring-indigo-50 bg-white' : 'border-gray-100 bg-gray-50 hover:border-gray-300'}`}><img src={img.uri} className="w-full h-full object-contain rounded" />{isImgSelected && <div className="absolute top-1 right-1"><CheckCircle className="w-4 h-4 text-indigo-600 bg-white rounded-full" /></div>}<div className="absolute bottom-1 left-1 bg-black/60 text-[8px] text-white px-1.5 rounded-md font-bold">#{i + 1}</div></button>);
-                                                                })}
+                                                            <div className="flex space-x-4 overflow-x-auto pb-6 hidden-scrollbar">
+                                                                {chapter.images.map((img: any, i: number) => (
+                                                                    <button key={img.id} onClick={() => setCarouselIndex(i)} className={`relative shrink-0 w-24 h-24 rounded-2xl border-4 transition-all overflow-hidden ${carouselIndex === i ? 'border-indigo-600 scale-110 shadow-xl' : 'border-slate-100 scale-100 grayscale hover:grayscale-0'}`}>
+                                                                        <img src={img.uri} className="w-full h-full object-cover" />
+                                                                    </button>
+                                                                ))}
                                                             </div>
                                                         </div>
                                                     );
@@ -763,63 +482,50 @@ export function Dashboard() {
                                             })()}
                                         </div>
                                     ) : (
-                                        <div className="space-y-1">
-                                            <div onClick={() => { if (selectedScopes.length === structure.items.length) setSelectedScopes([]); else setSelectedScopes(structure.items.map((it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title }))); }} className="group flex items-center p-4 rounded-xl border-2 border-dashed border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all cursor-pointer mb-6">
-                                                <div className={`w-6 h-6 rounded-full border-2 mr-3 flex items-center justify-center transition-colors ${selectedScopes.length === structure.items.length ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}>{selectedScopes.length === structure.items.length && <CheckCircle className="w-4 h-4 text-white" />}</div>
-                                                <div className="flex-1 text-left"><h3 className="font-bold text-gray-900">문서 전체 선택</h3><p className="text-xs text-gray-500">모든 제목과 내용을 한 번에 선택합니다.</p></div>
+                                        <div className="grid gap-4">
+                                            <div onClick={() => {
+                                                const allIds = structure.items.flatMap((it: any) => it.images.map((img: any) => img.id));
+                                                if (selectedImageIds.length === allIds.length) setSelectedImageIds([]);
+                                                else setSelectedImageIds(allIds);
+                                            }} className="group p-8 rounded-[2.5rem] border-4 border-dashed border-slate-100 hover:border-indigo-300 hover:bg-slate-50 transition-all cursor-pointer flex items-center justify-between">
+                                                <div className="flex items-center space-x-6">
+                                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${selectedImageIds.length === structure.items.flatMap((it: any) => it.images.map((img: any) => img.id)).length ? 'bg-indigo-600 shadow-lg' : 'bg-slate-200'}`}><CheckCircle className="w-6 h-6 text-white" /></div>
+                                                    <div className="space-y-1">
+                                                        <h3 className="text-xl font-black text-slate-900 tracking-tight">전체 항목 분석 및 규격화</h3>
+                                                        <p className="text-sm text-slate-400 font-medium">문서 내 모든 제목과 하위 내용을 순차적으로 교체합니다.</p>
+                                                    </div>
+                                                </div>
+                                                <ArrowRight className="w-6 h-6 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-2 transition-all" />
                                             </div>
-                                            {structure.items.map((item: any, idx: number) => {
-                                                const isSelected = selectedScopes.some(s => s.start === item.startIndex);
-                                                return (
-                                                    <motion.div key={item.id || idx} id={`chapter-${item.id}`} initial={false} animate={{ backgroundColor: highlightedChapterId === item.id ? "rgba(163, 230, 53, 0.4)" : isSelected ? "rgba(238, 242, 255, 1)" : "rgba(255, 255, 255, 0)", scale: highlightedChapterId === item.id ? 1.02 : 1, borderColor: highlightedChapterId === item.id ? "#84cc16" : isSelected ? "#c7d2fe" : "rgba(0,0,0,0)" }} transition={{ duration: highlightedChapterId === item.id ? 0.3 : 0.8 }} className={`group p-3 rounded-xl cursor-pointer mb-1 select-none flex items-center justify-between border ${isSelected ? 'text-indigo-900 border-indigo-200' : 'hover:bg-gray-50 text-gray-700 border-transparent'}`}>
-                                                        <div className="flex items-center flex-1" onClick={() => { setActiveChapterId(item.id); window.scrollTo({ top: 0, behavior: 'auto' }); }}>
-                                                            <div onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const descendants: any[] = [];
-                                                                const currentLevel = item.level;
-                                                                for (let i = idx + 1; i < structure.items.length; i++) {
-                                                                    const nextItem = structure.items[i];
-                                                                    if (nextItem.level > currentLevel) descendants.push(nextItem);
-                                                                    else break;
-                                                                }
-                                                                const isCurrentlySelected = selectedScopes.some(s => s.start === item.startIndex);
-                                                                const itemsToSync = [item, ...descendants];
-                                                                const allImageIds = itemsToSync.flatMap(it => it.images.map((img: any) => img.id));
-                                                                if (isCurrentlySelected) {
-                                                                    const rangesToRemove = itemsToSync.map(it => it.startIndex);
-                                                                    setSelectedScopes(prev => prev.filter(s => !rangesToRemove.includes(s.start)));
-                                                                    setSelectedImageIds(prev => prev.filter(id => !allImageIds.includes(id)));
-                                                                } else {
-                                                                    const toScope = (it: any) => ({ start: it.startIndex, end: it.scopeEndIndex, label: it.title });
-                                                                    const newScopes = itemsToSync.map(toScope);
-                                                                    setSelectedScopes(prev => { const existingStarts = new Set(newScopes.map(s => s.start)); const cleanPrev = prev.filter(s => !existingStarts.has(s.start)); return [...cleanPrev, ...newScopes]; });
-                                                                    setSelectedImageIds(prev => Array.from(new Set([...prev, ...allImageIds])));
-                                                                    scrollToElement(`summary-heading-${item.id}`, 'summary-list');
-                                                                }
-                                                            }} className={`w-4 h-4 mr-4 flex-shrink-0 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}>{isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}</div>
-                                                            <div className="flex items-center flex-1" style={{ paddingLeft: `${(item.level - 1) * 20}px` }}>
-                                                                <span className={`mr-2 text-xs font-mono ${item.level === 1 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>H{item.level}</span>
-                                                                <span className={`${item.level === 1 ? 'font-bold' : 'font-medium'} flex-1`}>{item.title}</span>
-                                                                {item.imageCount > 0 && <div className="ml-2 flex items-center text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold"><ImageIcon className="w-3 h-3 mr-1" />{item.imageCount}</div>}
-                                                            </div>
+
+                                            <div className="mt-8 space-y-3">
+                                                {structure.items.map((item: any) => (
+                                                    <motion.div key={item.id} onClick={() => { setActiveChapterId(item.id); setCarouselIndex(0); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="group p-5 rounded-3xl bg-white hover:bg-slate-50 border border-slate-100 hover:border-indigo-100 transition-all cursor-pointer flex items-center justify-between shadow-sm hover:shadow-md">
+                                                        <div className="flex items-center min-w-0" style={{ paddingLeft: `${(item.level - 1) * 24}px` }}>
+                                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center mr-4 shrink-0 font-black text-[10px] ${item.level === 1 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}>H{item.level}</div>
+                                                            <span className={`truncate font-bold text-slate-800 ${item.level === 1 ? 'text-lg' : 'text-sm'}`}>{item.title}</span>
+                                                            {item.imageCount > 0 && <span className="ml-4 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black">{item.imageCount} IMAGES</span>}
                                                         </div>
-                                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2"><MousePointerClick className="w-4 h-4 text-indigo-400" /></div>
+                                                        <MousePointerClick className="w-5 h-5 text-slate-200 group-hover:text-indigo-400 transition-colors" />
                                                     </motion.div>
-                                                );
-                                            })}
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center min-h-[500px] text-gray-400">
-                                <Search className="w-8 h-8 mr-4 opacity-20" />
-                                <span>문서 URL을 입력하고 챕터를 불러오세요.</span>
+                            <div className="bg-white rounded-[3rem] p-24 shadow-xl border border-slate-100/50 flex flex-col items-center justify-center text-center space-y-8 animate-pulse">
+                                <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center"><Layout className="w-10 h-10 text-slate-200" /></div>
+                                <div className="space-y-4">
+                                    <h2 className="text-2xl font-black text-slate-300 tracking-tight">Ready for analysis</h2>
+                                    <p className="text-slate-400 max-w-xs mx-auto">상단에 구글 문서 URL을 붙여넣고<br />분석을 시작해 주세요.</p>
+                                </div>
                             </div>
                         )}
                     </div>
                 </div>
             </main>
-        </div >
+        </div>
     );
 }

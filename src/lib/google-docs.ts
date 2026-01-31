@@ -8,7 +8,7 @@ export interface DocumentOutlineItem {
     level: number;
     startIndex: number;
     endIndex: number;
-    scopeEndIndex: number; // The end index of the "chapter"
+    scopeEndIndex: number;
     imageCount: number;
     images: Array<{
         id: string;
@@ -23,12 +23,6 @@ export interface DocumentStructure {
     items: DocumentOutlineItem[];
     inlineObjects: Record<string, any>;
     positionedObjects: Record<string, any>;
-}
-
-export interface ResizeRequest {
-    targetWidthCm: number;
-    scopes?: Array<{ start: number; end: number }>;
-    selectedImageIds?: string[];
 }
 
 // --- Helpers ---
@@ -61,7 +55,90 @@ export const getParagraphText = (content: any[] = []): string => {
         .trim();
 };
 
-// --- Core Logic ---
+// --- Atomic Actions ---
+
+/**
+ * Finds a specific image by its object ID and returns its current metadata and position.
+ * This is the crucial part for the "Atomic Sync" strategy.
+ */
+export const findImageMetadata = (doc: any, objectId: string) => {
+    const inlineObj = doc.inlineObjects?.[objectId];
+    const positionedObj = doc.positionedObjects?.[objectId];
+
+    if (inlineObj) {
+        // Find position in body
+        let foundIndex = -1;
+        const traverse = (elements: any[]) => {
+            for (const el of elements) {
+                if (el.paragraph) {
+                    for (const element of el.paragraph.elements || []) {
+                        if (element.inlineObjectElement?.inlineObjectId === objectId) {
+                            foundIndex = element.startIndex;
+                            return true;
+                        }
+                    }
+                }
+                if (el.table) {
+                    for (const row of el.table.tableRows || []) {
+                        for (const cell of row.tableCells || []) {
+                            if (traverse(cell.content || [])) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+        traverse(doc.body?.content || []);
+
+        if (foundIndex !== -1) {
+            const props = inlineObj.inlineObjectProperties?.embeddedObject;
+            return {
+                type: 'inline' as const,
+                id: objectId,
+                index: foundIndex,
+                uri: props?.imageProperties?.contentUri,
+                width: props?.size?.width?.magnitude,
+                height: props?.size?.height?.magnitude,
+            };
+        }
+    }
+
+    if (positionedObj) {
+        // Find anchor paragraph
+        let anchorIndex = -1;
+        const traverse = (elements: any[]) => {
+            for (const el of elements) {
+                if (el.paragraph?.positionedObjectIds?.includes(objectId)) {
+                    anchorIndex = el.startIndex;
+                    return true;
+                }
+                if (el.table) {
+                    for (const row of el.table.tableRows || []) {
+                        for (const cell of row.tableCells || []) {
+                            if (traverse(cell.content || [])) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+        traverse(doc.body?.content || []);
+
+        const props = positionedObj.positionedObjectProperties?.embeddedObject;
+        return {
+            type: 'positioned' as const,
+            id: objectId,
+            anchorIndex: anchorIndex,
+            uri: props?.imageProperties?.contentUri,
+            width: props?.size?.width?.magnitude,
+            height: props?.size?.height?.magnitude,
+        };
+    }
+
+    return null;
+};
+
+// --- Structure Logic ---
 
 export const fetchDocumentStructure = async (docId: string, accessToken: string): Promise<DocumentStructure> => {
     const docs = getGoogleDocsClient(accessToken);
@@ -71,6 +148,7 @@ export const fetchDocumentStructure = async (docId: string, accessToken: string)
     const outline: DocumentOutlineItem[] = [];
     const content = doc.body?.content || [];
 
+    // 1. Extract Headings
     content.forEach((el, index) => {
         if (el.paragraph) {
             const headingType = el.paragraph.paragraphStyle?.namedStyleType;
@@ -80,12 +158,12 @@ export const fetchDocumentStructure = async (docId: string, accessToken: string)
                 const text = getParagraphText([el]);
                 if (text) {
                     outline.push({
-                        id: el.startIndex?.toString() || index.toString(),
+                        id: `heading-${el.startIndex}`,
                         title: text,
                         level: level,
                         startIndex: el.startIndex || 0,
                         endIndex: el.endIndex || 0,
-                        scopeEndIndex: 0, // Placeholder, updated below
+                        scopeEndIndex: 0,
                         imageCount: 0,
                         images: []
                     });
@@ -94,78 +172,62 @@ export const fetchDocumentStructure = async (docId: string, accessToken: string)
         }
     });
 
-    // Calculate scopeEndIndex (Chapter boundaries)
+    // 2. Map Image Scopes (Chapters)
     for (let i = 0; i < outline.length; i++) {
         const current = outline[i];
-        let nextSiblingOrParentIndex = doc.body?.content?.length
+        let nextBoundary = doc.body?.content?.length
             ? (doc.body.content[doc.body.content.length - 1].endIndex || 0)
             : 0;
 
         for (let j = i + 1; j < outline.length; j++) {
-            const next = outline[j];
-            if (next.level <= current.level) {
-                nextSiblingOrParentIndex = next.startIndex;
+            if (outline[j].level <= current.level) {
+                nextBoundary = outline[j].startIndex;
                 break;
             }
         }
-        current.scopeEndIndex = nextSiblingOrParentIndex;
+        current.scopeEndIndex = nextBoundary;
     }
 
-    // New: Collect images for each chapter
-    outline.forEach(chapter => {
-        const chapterImages: any[] = [];
-
-        const collectFromElement = (el: any) => {
+    // 3. Collect Images
+    const allImages: any[] = [];
+    const collectFromContent = (elements: any[]) => {
+        elements.forEach(el => {
             if (el.paragraph) {
-                const elStart = el.startIndex || 0;
-                const isInScope = elStart >= chapter.startIndex && elStart < chapter.scopeEndIndex;
-
-                if (isInScope) {
-                    // Inline Images
-                    el.paragraph.elements?.forEach((element: any) => {
-                        if (element.inlineObjectElement) {
-                            const objId = element.inlineObjectElement.inlineObjectId;
-                            const obj = doc.inlineObjects?.[objId];
-                            const uri = obj?.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri;
-                            if (uri) {
-                                chapterImages.push({
-                                    id: objId,
-                                    uri: uri,
-                                    startIndex: element.startIndex,
-                                    type: 'inline'
-                                });
-                            }
-                        }
-                    });
-
-                    // Positioned Images
-                    el.paragraph.positionedObjectIds?.forEach((id: string) => {
-                        const obj = doc.positionedObjects?.[id];
-                        const uri = obj?.positionedObjectProperties?.embeddedObject?.imageProperties?.contentUri;
+                const pStart = el.startIndex || 0;
+                // Inline
+                el.paragraph.elements?.forEach((element: any) => {
+                    const objId = element.inlineObjectElement?.inlineObjectId;
+                    if (objId) {
+                        const obj = doc.inlineObjects?.[objId];
+                        const uri = obj?.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri;
                         if (uri) {
-                            chapterImages.push({
-                                id: id,
-                                uri: uri,
-                                startIndex: elStart,
-                                type: 'positioned'
-                            });
+                            allImages.push({ id: objId, uri, startIndex: element.startIndex, type: 'inline' });
                         }
-                    });
-                }
+                    }
+                });
+                // Positioned
+                el.paragraph.positionedObjectIds?.forEach((id: string) => {
+                    const obj = doc.positionedObjects?.[id];
+                    const uri = obj?.positionedObjectProperties?.embeddedObject?.imageProperties?.contentUri;
+                    if (uri) {
+                        allImages.push({ id, uri, startIndex: pStart, type: 'positioned' });
+                    }
+                });
             }
             if (el.table) {
                 el.table.tableRows?.forEach((row: any) => {
-                    row.tableCells?.forEach((cell: any) => {
-                        cell.content?.forEach((contentEl: any) => collectFromElement(contentEl));
-                    });
+                    row.tableCells?.forEach((cell: any) => collectFromContent(cell.content || []));
                 });
             }
-        };
+        });
+    };
 
-        doc.body?.content?.forEach((el: any) => collectFromElement(el));
+    collectFromContent(content);
 
-        chapter.images = chapterImages;
-        chapter.imageCount = chapterImages.length;
+    // 4. Assign Images to Chapters
+    outline.forEach(chapter => {
+        chapter.images = allImages.filter(img => img.startIndex >= chapter.startIndex && img.startIndex < chapter.scopeEndIndex);
+        chapter.imageCount = chapter.images.length;
     });
 
     return {
@@ -174,129 +236,4 @@ export const fetchDocumentStructure = async (docId: string, accessToken: string)
         inlineObjects: doc.inlineObjects || {},
         positionedObjects: doc.positionedObjects || {},
     };
-};
-
-export const calculateImageResizeRequests = (
-    doc: any, // Raw API response
-    options: ResizeRequest,
-    accessToken: string,
-    host: string
-) => {
-    const actions: any[] = [];
-    const targetWidthPt = options.targetWidthCm * 28.3465;
-
-    // Helper to check scope
-    const isInScope = (startIndex: number) => {
-        // If scopes is provided and not empty, check if index is in ANY range
-        if (options.scopes && options.scopes.length > 0) {
-            return options.scopes.some(scope => startIndex >= scope.start && startIndex < scope.end);
-        }
-        // If no scopes provided, default to ALL
-        return true;
-    };
-
-    // We need to collect ALL actions first, then sort them by index DESCENDING.
-    // This prevents index shifting from affecting subsequent operations.
-
-    const collectActions = (element: any) => {
-        // 1. Inline Images
-        if (element.paragraph) {
-            const pStart = element.startIndex || 0;
-
-            // Process Inline Images inside the paragraph
-            element.paragraph.elements?.forEach((el: any) => {
-                if (el.inlineObjectElement) {
-                    const elStart = el.startIndex;
-                    const inlineObjId = el.inlineObjectElement.inlineObjectId;
-
-                    // Filtration Logic:
-                    // 1. If individual images are selected, check if this ID is in the list.
-                    // 2. Otherwise, check if it's within the selected chapters (scopes).
-                    if (options.selectedImageIds && options.selectedImageIds.length > 0) {
-                        if (!options.selectedImageIds.includes(inlineObjId)) return;
-                    } else if (!isInScope(elStart)) {
-                        return;
-                    }
-
-                    const inlineObj = doc.inlineObjects?.[inlineObjId];
-                    if (inlineObj) {
-                        const props = inlineObj.inlineObjectProperties?.embeddedObject;
-                        const width = props?.size?.width?.magnitude;
-                        const height = props?.size?.height?.magnitude;
-                        const contentUri = props?.imageProperties?.contentUri;
-
-                        if (width && height && contentUri) {
-                            const scale = targetWidthPt / width;
-                            const newHeightPt = height * scale;
-
-                            actions.push({
-                                type: 'inline',
-                                id: inlineObjId,
-                                index: elStart,
-                                uri: contentUri,
-                                width: targetWidthPt,
-                                height: newHeightPt
-                            });
-                        }
-                    }
-                }
-            });
-
-            // Process Positioned Objects (Floating) attached to this paragraph
-            if (element.paragraph.positionedObjectIds) {
-                element.paragraph.positionedObjectIds.forEach((id: string) => {
-                    // Filtration Logic (same as inline)
-                    if (options.selectedImageIds && options.selectedImageIds.length > 0) {
-                        if (!options.selectedImageIds.includes(id)) return;
-                    } else if (!isInScope(pStart)) {
-                        return;
-                    }
-
-                    const obj = doc.positionedObjects?.[id];
-                    if (obj) {
-                        const props = obj.positionedObjectProperties?.embeddedObject;
-                        const width = props?.size?.width?.magnitude;
-                        const height = props?.size?.height?.magnitude;
-                        const contentUri = props?.imageProperties?.contentUri;
-
-                        if (width && height && contentUri) {
-                            const scale = targetWidthPt / width;
-                            const newHeightPt = height * scale;
-
-                            actions.push({
-                                type: 'positioned',
-                                id: id,
-                                anchorIndex: pStart,
-                                uri: contentUri,
-                                width: targetWidthPt,
-                                height: newHeightPt
-                            });
-                        }
-                    }
-                });
-            }
-        }
-
-        // 2. Tables (Recurse)
-        if (element.table) {
-            element.table.tableRows?.forEach((row: any) => {
-                row.tableCells?.forEach((cell: any) => {
-                    cell.content?.forEach((contentEl: any) => collectActions(contentEl));
-                });
-            });
-        }
-    };
-
-    doc.body?.content?.forEach((el: any) => collectActions(el));
-
-    // Sort actions by Index Descending to keep indices stable
-    actions.sort((a, b) => {
-        const valA = (a.type === 'inline' ? a.index : a.anchorIndex) || 0;
-        const valB = (b.type === 'inline' ? b.index : b.anchorIndex) || 0;
-        if (valB !== valA) return valB - valA;
-        if (a.type !== b.type) return a.type === 'positioned' ? -1 : 1;
-        return 0;
-    });
-
-    return { actions };
 };
