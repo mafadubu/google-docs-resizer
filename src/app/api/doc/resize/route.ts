@@ -1,9 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
 import { getGoogleDocsClient } from "@/lib/google-docs";
-import { incrementStats, storeImageTicket } from "@/lib/redis";
+import { incrementStats } from "@/lib/redis";
 import { NextResponse } from "next/server";
-import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -19,14 +18,13 @@ export async function POST(req: Request) {
         const docRes = await docs.documents.get({ documentId: docId });
         const doc = docRes.data;
 
-        // Collect actions with current indices
-        const actions: any[] = [];
         const targetWidthPt = targetWidthCm * 28.3465;
+        const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "google-docs-resizer.vercel.app";
+        const protocol = req.headers.get("x-forwarded-proto") || "https";
 
-        const findImageIdx = (id: string) => {
+        const findImageInfo = (id: string) => {
             const inlineObj = doc.inlineObjects?.[id];
             if (inlineObj) {
-                // Find in body
                 let foundAt = -1;
                 const search = (els: any[]) => {
                     for (const el of els) {
@@ -70,34 +68,32 @@ export async function POST(req: Request) {
             return null;
         };
 
+        const actions: any[] = [];
         for (const id of selectedImageIds) {
-            const meta = findImageIdx(id);
-            if (meta && meta.uri) {
-                const scale = targetWidthPt / (meta.w || targetWidthPt);
-                actions.push({ ...meta, id, newH: (meta.h || targetWidthPt) * scale });
+            const info = findImageInfo(id);
+            if (info && info.uri) {
+                const scale = targetWidthPt / (info.w || targetWidthPt);
+                actions.push({ ...info, id, newH: (info.h || targetWidthPt) * scale });
             }
         }
 
-        // --- CRITICAL: SORT DESCENDING BY INDEX ---
-        // This ensures moving/deleting an image doesn't shift indices of images we haven't processed yet.
+        // --- Descending Sort for Index Stability ---
         actions.sort((a, b) => b.index - a.index);
 
-        const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "google-docs-resizer.vercel.app";
         const newIdMapping: Record<string, string> = {};
-        let success = 0;
-        let failed = 0;
-
-        // Process in Micro-Batches of 5 to avoid timeouts
         const CHUNK_SIZE = 5;
+        let successCount = 0;
+        let failedCount = 0;
+
         for (let i = 0; i < actions.length; i += CHUNK_SIZE) {
             const chunk = actions.slice(i, i + CHUNK_SIZE);
             const requests: any[] = [];
-            const chunkIds: string[] = [];
+            const idsInChunk: string[] = [];
 
             for (const action of chunk) {
-                const tkId = uuidv4().substring(0, 8) + Date.now().toString(36);
-                await storeImageTicket(tkId, { url: action.uri, token: accessToken });
-                const proxyUri = `https://${host}/api/image-proxy?id=${tkId}`;
+                // BLUEPRINT Proxy Link Generation with Base64 & Fake Extension
+                const b64Url = Buffer.from(action.uri).toString('base64');
+                const proxyUri = `${protocol}://${host}/api/image-proxy?u=${encodeURIComponent(b64Url)}&t=${accessToken}&v=${Date.now()}.png`;
 
                 if (action.type === 'inline') {
                     requests.push({ deleteContentRange: { range: { startIndex: action.index, endIndex: action.index + 1 } } });
@@ -106,7 +102,7 @@ export async function POST(req: Request) {
                     requests.push({ deletePositionedObject: { objectId: action.id } });
                     requests.push({ insertInlineImage: { uri: proxyUri, location: { index: action.index }, objectSize: { width: { magnitude: targetWidthPt, unit: 'PT' }, height: { magnitude: action.newH, unit: 'PT' } } } });
                 }
-                chunkIds.push(action.id);
+                idsInChunk.push(action.id);
             }
 
             try {
@@ -114,20 +110,19 @@ export async function POST(req: Request) {
                 res.data.replies?.forEach((reply, rIdx) => {
                     const newId = reply.insertInlineImage?.objectId;
                     if (newId) {
-                        // Find which action this reply belongs to (insert request is every 2nd in requests array)
-                        const actionIdx = Math.floor(rIdx / 2);
-                        if (chunkIds[actionIdx]) newIdMapping[chunkIds[actionIdx]] = newId;
-                        success++;
+                        const originalActionIdx = Math.floor(rIdx / 2);
+                        newIdMapping[idsInChunk[originalActionIdx]] = newId;
+                        successCount++;
                     }
                 });
-            } catch (e) {
-                console.error("Batch Error:", e);
-                failed += chunk.length;
+            } catch (e: any) {
+                console.error("BLUEPRINT Batch Error:", e);
+                failedCount += chunk.length;
             }
         }
 
-        incrementStats(success).catch(() => { });
-        return NextResponse.json({ success: true, results: { success, failed, total: actions.length }, newIdMapping });
+        incrementStats(successCount).catch(() => { });
+        return NextResponse.json({ success: true, results: { success: successCount, failed: failedCount, total: actions.length }, newIdMapping });
 
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

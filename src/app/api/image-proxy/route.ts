@@ -1,46 +1,46 @@
-import { getImageTicket } from "@/lib/redis";
 import { NextResponse } from "next/server";
 
+export const runtime = "edge"; // 속도 극대화를 위해 에지 런타임 사용
+
+/**
+ * v9.0 BLUEPRINT Stateless Proxy
+ * Redis 의존성 없이 URL에 포함된 토큰을 통해 즉시 이미지를 중계합니다.
+ */
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const targetUrl = searchParams.get("u"); // Base64 encoded target URL
+    const token = searchParams.get("t");    // Access Token
 
-    if (!id) {
-        return new Response("Missing ticket id", { status: 400 });
+    if (!targetUrl || !token) {
+        return new Response("Missing parameters", { status: 400 });
     }
 
     try {
-        const ticket = await getImageTicket(id);
-        if (!ticket) {
-            console.error(`[Image Proxy] Ticket not found or expired: ${id}`);
-            return new Response("Ticket not found or expired", { status: 404 });
-        }
+        const decodedUrl = Buffer.from(targetUrl, 'base64').toString();
 
-        const { url, token } = ticket;
-        console.log(`[Image Proxy] Fetching image for ticket ${id}: ${url.substring(0, 50)}...`);
-
-        const response = await fetch(url, {
+        const response = await fetch(decodedUrl, {
             headers: {
-                Authorization: `Bearer ${token}`,
-            },
+                "Authorization": `Bearer ${token}`,
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
         });
 
         if (!response.ok) {
-            console.error(`[Image Proxy] Failed to fetch image: ${response.statusText}`);
-            return new Response(`Failed to fetch image: ${response.statusText}`, { status: response.status });
+            return new Response("Failed to fetch image from Google", { status: response.status });
         }
 
         const blob = await response.blob();
-        const contentType = response.headers.get("Content-Type") || "image/png";
 
+        // 구글 서버가 이미지로 인식하도록 강제 헤더 설정
         return new NextResponse(blob, {
             headers: {
-                "Content-Type": contentType,
-                "Cache-Control": "public, max-age=60", // Cache for 1 min
-            },
+                "Content-Type": response.headers.get("Content-Type") || "image/png",
+                "Cache-Control": "public, max-age=3600, s-maxage=3600",
+                "Access-Control-Allow-Origin": "*"
+            }
         });
-    } catch (error: any) {
-        console.error("[Image Proxy] Error:", error.message);
-        return new Response("Internal Server Error", { status: 500 });
+    } catch (error) {
+        console.error("Proxy Error:", error);
+        return new Response("Internal Proxy Error", { status: 500 });
     }
 }
