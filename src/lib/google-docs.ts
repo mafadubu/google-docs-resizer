@@ -300,10 +300,18 @@ export const calculateImageResizeRequests = (
 
     actions.forEach(action => {
         if (action.type === 'inline') {
-            // STRATEGY: Insert FIRST, then Delete.
-            // 1. Insert new image at current index.
-            // 2. The old image is pushed to index + 1.
-            // 3. Delete the old image at [index + 1, index + 2].
+            // STRATEGY: Delete FIRST, then Insert.
+            // 1. Delete the old image at [index, index + 1].
+            // 2. Insert new image at [index].
+            // This is safer because we clear the spot first.
+            requests.push({
+                deleteContentRange: {
+                    range: {
+                        startIndex: action.index,
+                        endIndex: action.index + 1
+                    }
+                }
+            });
             requests.push({
                 insertInlineImage: {
                     uri: action.uri,
@@ -314,17 +322,8 @@ export const calculateImageResizeRequests = (
                     }
                 }
             });
-            requests.push({
-                deleteContentRange: {
-                    range: {
-                        startIndex: action.index + 1,
-                        endIndex: action.index + 2
-                    }
-                }
-            });
             originalIds.push(action.id);
         } else if (action.type === 'positioned') {
-            // Positioned objects are separate from text flow, so we can delete by ID safely.
             requests.push({
                 deletePositionedObject: {
                     objectId: action.id

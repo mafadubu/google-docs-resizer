@@ -533,20 +533,31 @@ export function Dashboard() {
                                         <div className="py-5"><h2 className="text-base font-black text-gray-900 truncate leading-tight">{structure.title}</h2><p className="text-[11px] text-gray-500 mt-1">상세 조절을 위해 아래 챕터를 선택해 주세요.</p></div>
                                     ) : (
                                         <div className="divide-y divide-gray-50 bg-white">
-                                            <div className="flex items-center justify-between py-3 px-4 gap-2 h-[60px] relative">
-                                                {/* Version Marker for verification */}
-                                                <div className="absolute top-1 right-1 w-1 h-1 bg-green-400 rounded-full opacity-50" title="v3.1 Refreshed" />
+                                            {/* Header Row: Fixed Grid Layout [Left Button | Title | Right Button] */}
+                                            <div className="grid grid-cols-[90px_1fr_90px] items-center gap-2 p-3 min-h-[60px] bg-white relative">
+                                                {/* Version Marker */}
+                                                <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-500 rounded-full opacity-60 z-50" title="v3.2 Grid Layout" />
 
-                                                <div className="w-[80px] flex-shrink-0">
-                                                    <button onClick={handleBackToOutline} className="flex items-center justify-center w-full py-2 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-all text-[11px] font-black border border-slate-100"><ChevronLeft className="w-3.5 h-3.5 mr-0.5" />목차</button>
+                                                {/* Left: Back Button */}
+                                                <div className="justify-self-start w-full">
+                                                    <button onClick={handleBackToOutline} className="flex items-center justify-center w-full py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-[11px] font-bold shadow-sm group">
+                                                        <ChevronLeft className="w-3.5 h-3.5 mr-0.5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                                                        목차
+                                                    </button>
                                                 </div>
 
-                                                <div className="flex-1 min-w-0 text-center flex flex-col justify-center">
-                                                    <h3 className="text-[13px] font-black text-gray-900 truncate px-1">{structure.items.find((it: any) => it.id === activeChapterId)?.title}</h3>
-                                                    <span className="text-[9px] text-indigo-400 font-bold leading-none mt-0.5 uppercase tracking-widest opacity-70">챕터 상세 편집</span>
+                                                {/* Center: Title (Truncated) */}
+                                                <div className="flex flex-col items-center justify-center min-w-0 px-1 w-full overflow-hidden">
+                                                    <h3 className="text-[13px] font-black text-gray-900 truncate w-full text-center leading-tight">
+                                                        {structure.items.find((it: any) => it.id === activeChapterId)?.title}
+                                                    </h3>
+                                                    <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded-md tracking-tight">
+                                                        챕터 편집
+                                                    </span>
                                                 </div>
 
-                                                <div className="w-[80px] flex-shrink-0 flex justify-end">
+                                                {/* Right: Select All Button */}
+                                                <div className="justify-self-end w-full">
                                                     <button onClick={() => {
                                                         const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                         if (!currentChapter) return;
@@ -554,16 +565,25 @@ export function Dashboard() {
                                                         const areAllSelected = allIds.every((id: string) => selectedImageIds.includes(id));
                                                         if (areAllSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
                                                         else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
-                                                    }} className="flex items-center justify-center w-full py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all text-[11px] font-black shadow-sm shadow-indigo-100 tracking-tighter">
+                                                    }} className={`flex items-center justify-center w-full py-2.5 rounded-xl transition-all text-[11px] font-bold shadow-sm ${(() => {
+                                                            const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                            const allIds = currentChapter?.images.map((img: any) => img.id) || [];
+                                                            return allIds.every((id: string) => selectedImageIds.includes(id));
+                                                        })()
+                                                            ? 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+                                                            : 'bg-indigo-600 border border-transparent text-white hover:bg-indigo-700 shadow-indigo-100'
+                                                        }`}>
                                                         {(() => {
                                                             const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                             const allIds = currentChapter?.images.map((img: any) => img.id) || [];
-                                                            return allIds.every((id: string) => selectedImageIds.includes(id)) ? "전체 해제" : "전체 선택";
+                                                            return allIds.every((id: string) => selectedImageIds.includes(id)) ? "해제" : "전체 선택";
                                                         })()}
                                                     </button>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center justify-between py-2.5 px-4 bg-gray-50/30">
+
+                                            {/* Toolbar */}
+                                            <div className="flex items-center justify-between py-2.5 px-4 bg-gray-50/50">
                                                 <div className="flex items-center bg-gray-100/50 rounded-xl p-1">
                                                     <button onClick={() => setViewMode('grid')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Grid3X3 className="w-3.5 h-3.5 mr-1.5" />그리드</button>
                                                     <button onClick={() => setViewMode('carousel')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Maximize2 className="w-3.5 h-3.5 mr-1.5" />캐러셀</button>
