@@ -533,13 +533,14 @@ export function Dashboard() {
                                         <div className="py-5"><h2 className="text-base font-black text-gray-900 truncate leading-tight">{structure.title}</h2><p className="text-[11px] text-gray-500 mt-1">상세 조절을 위해 아래 챕터를 선택해 주세요.</p></div>
                                     ) : (
                                         <div className="divide-y divide-gray-100 bg-white">
-                                            {/* Header Row: Hardened Grid Layout [Left: 100px | Center: Auto | Right: 100px] */}
-                                            <div className="grid grid-cols-[100px_1fr_100px] items-center gap-0 p-3 min-h-[64px] bg-white relative overflow-hidden">
-                                                {/* Logic Version Dot */}
-                                                <div className="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full animate-pulse z-50 pointer-events-none" title="v3.3 Optimized" />
+                                            {/* Header Row: Inline Styles for absolute reliability */}
+                                            <div className="grid items-center p-3 min-h-[64px] bg-white relative overflow-hidden" style={{ gridTemplateColumns: '100px 1fr 100px', gap: '0px' }}>
+                                                {/* Logic Version Dot - Red Ping for high visibility */}
+                                                <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-600 rounded-full animate-ping z-50 pointer-events-none" title="v3.5 Critical Patch" />
+                                                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-600 rounded-full z-50 pointer-events-none" />
 
                                                 {/* Left Column: Fixed 100px */}
-                                                <div className="min-w-0 pr-1">
+                                                <div style={{ minWidth: '0px', paddingRight: '4px' }}>
                                                     <button onClick={handleBackToOutline} className="flex items-center justify-center w-full py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 transition-all text-[11px] font-bold shadow-sm group">
                                                         <ChevronLeft className="w-3.5 h-3.5 mr-0.5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
                                                         목차
@@ -547,18 +548,18 @@ export function Dashboard() {
                                                 </div>
 
                                                 {/* Center Column: Title (Flexible with Truncate) */}
-                                                <div className="flex flex-col items-center justify-center min-w-0 px-2 w-full">
-                                                    <h3 className="text-[14px] font-black text-gray-900 truncate w-full text-center leading-none" title={structure.items.find((it: any) => it.id === activeChapterId)?.title}>
+                                                <div className="flex flex-col items-center justify-center min-w-0 px-2 w-full overflow-hidden">
+                                                    <h3 className="text-[14px] font-black text-gray-900 leading-none text-center" style={{ width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={structure.items.find((it: any) => it.id === activeChapterId)?.title}>
                                                         {structure.items.find((it: any) => it.id === activeChapterId)?.title}
                                                     </h3>
                                                     <div className="mt-1 flex items-center space-x-1.5 overflow-hidden">
-                                                        <span className="shrink-0 w-1 h-1 bg-indigo-400 rounded-full" />
-                                                        <span className="text-indigo-500 text-[9px] font-bold uppercase tracking-wider truncate">챕터 이미지 조절</span>
+                                                        <span className="shrink-0 w-1 h-1 bg-red-400 rounded-full animate-pulse" />
+                                                        <span className="text-gray-500 text-[9px] font-bold uppercase tracking-wider truncate">챕터 상세 조절 모드</span>
                                                     </div>
                                                 </div>
 
                                                 {/* Right Column: Fixed 100px */}
-                                                <div className="min-w-0 pl-1">
+                                                <div style={{ minWidth: '0px', paddingLeft: '4px' }}>
                                                     <button onClick={() => {
                                                         const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                         if (!currentChapter) return;
@@ -571,13 +572,13 @@ export function Dashboard() {
                                                             const allIds = currentChapter?.images.map((img: any) => img.id) || [];
                                                             return allIds.every((id: string) => selectedImageIds.includes(id));
                                                         })()
-                                                            ? 'bg-red-50 border border-red-100 text-red-600 hover:bg-red-100'
-                                                            : 'bg-indigo-600 border border-transparent text-white hover:bg-indigo-700 shadow-indigo-100'
+                                                            ? 'bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100'
+                                                            : 'bg-indigo-600 border border-transparent text-white hover:bg-indigo-800 shadow-indigo-100'
                                                         }`}>
                                                         {(() => {
                                                             const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                             const allIds = currentChapter?.images.map((img: any) => img.id) || [];
-                                                            return allIds.every((id: string) => selectedImageIds.includes(id)) ? "전체 해제" : "전체 선택";
+                                                            return allIds.every((id: string) => selectedImageIds.includes(id)) ? "선택 해제" : "전체 선택";
                                                         })()}
                                                     </button>
                                                 </div>

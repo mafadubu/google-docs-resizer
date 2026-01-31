@@ -37,15 +37,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "No images found to resize", count: 0 });
         }
 
-        // 3. Batch Update in chunks for stability vs speed (Avoiding Vercel timeout)
-        const CHUNK_SIZE = 20; // 20 images at a time is stable and fast enough
+        // 3. Batch Update in large chunks to stay under Vercel's 10s timeout
+        // (113 images x 1.5s = 170s -> Original cause of Timeout)
+        // Now: 60 images per batch = ~2 batches total.
+        const CHUNK_SIZE = 120; // Try processing ALL in one batch first, if fails, we will see.
         const newIdMapping: Record<string, string> = {};
         let totalInsertCount = 0;
 
         for (let i = 0; i < requests.length; i += CHUNK_SIZE) {
             const chunk = requests.slice(i, i + CHUNK_SIZE);
             let retryCount = 0;
-            const MAX_RETRIES = 3;
+            const MAX_RETRIES = 2; // Reduce retries to save time
 
             while (retryCount <= MAX_RETRIES) {
                 try {
@@ -57,35 +59,40 @@ export async function POST(req: Request) {
                     });
 
                     // Track new IDs
-                    const insertReplies = response.data.replies?.filter((r: any) => r.insertInlineImage) || [];
-                    if (insertReplies.length > 0) {
-                        const originalIdsForThisChunk = originalIds.slice(totalInsertCount, totalInsertCount + insertReplies.length);
-                        insertReplies.forEach((reply: any, idx: number) => {
-                            const oldId = originalIdsForThisChunk[idx];
+                    const replies = response.data.replies || [];
+                    let chunkInsertIdx = 0;
+
+                    // We need to find insertReplies by checking the original requests in this chunk
+                    chunk.forEach((req, cIdx) => {
+                        if (req.insertInlineImage) {
+                            const reply = replies[cIdx];
+                            const oldId = originalIds[totalInsertCount + chunkInsertIdx];
                             const newId = reply.insertInlineImage?.objectId;
                             if (oldId && newId) newIdMapping[oldId] = newId;
-                        });
-                        totalInsertCount += insertReplies.length;
-                    }
+                            chunkInsertIdx++;
+                        }
+                    });
 
+                    totalInsertCount += chunkInsertIdx;
                     break;
                 } catch (chunkError: any) {
-                    console.error(`[Resize Error] Batch starting at ${i}, Retry ${retryCount}:`, chunkError.message);
+                    console.error(`[Resize Error] Batch ${i / CHUNK_SIZE}, Retry ${retryCount}:`, chunkError.message);
+                    if (chunkError.response?.data) {
+                        console.error("DEBUG API ERR:", JSON.stringify(chunkError.response.data));
+                    }
 
                     const isRetryable = chunkError.message?.includes("Internal error") || chunkError.code >= 500;
                     if (isRetryable && retryCount < MAX_RETRIES) {
                         retryCount++;
-                        // Backoff before retry
-                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
                         continue;
                     }
                     throw chunkError;
                 }
             }
 
-            // Small settle time between batches
             if (i + CHUNK_SIZE < requests.length) {
-                await new Promise(resolve => setTimeout(resolve, 800));
+                await new Promise(resolve => setTimeout(resolve, 300));
             }
         }
 

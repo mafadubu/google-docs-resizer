@@ -287,12 +287,14 @@ export const calculateImageResizeRequests = (
 
     doc.body?.content?.forEach((el: any) => collectActions(el));
 
-    // Sort actions by Index Descending
-    // For Positioned objects, we use anchorIndex.
+    // Sort actions by Index Descending to keep indices stable
     actions.sort((a, b) => {
-        const idxA = a.type === 'inline' ? a.index : a.anchorIndex;
-        const idxB = b.type === 'inline' ? b.index : b.anchorIndex;
-        return idxB - idxA;
+        const valA = (a.type === 'inline' ? a.index : a.anchorIndex) || 0;
+        const valB = (b.type === 'inline' ? b.index : b.anchorIndex) || 0;
+        if (valB !== valA) return valB - valA;
+        // If same index, process 'positioned' first to avoid text shift issues
+        if (a.type !== b.type) return a.type === 'positioned' ? -1 : 1;
+        return 0;
     });
 
     const requests: any[] = [];
