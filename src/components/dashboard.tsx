@@ -206,7 +206,7 @@ export function Dashboard() {
                     <div className="flex flex-col">
                         <span className="font-bold text-lg tracking-tight text-gray-900 leading-none">Docs Resizer ✨</span>
                         <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mt-1 flex items-center">
-                            v8.0 IRONCLAD Engine
+                            v8.2 IRONCLAD Engine
                         </span>
                     </div>
                 </div>
