@@ -343,8 +343,17 @@ export function Dashboard() {
             </AnimatePresence>
             <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
                 <div className="flex items-center space-x-3 cursor-pointer group" onClick={handleReset}>
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">G</div>
-                    <span className="font-bold text-lg tracking-tight group-hover:text-indigo-600 transition-colors">Docs Resizer ✨</span>
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform relative">
+                        G
+                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse" title="v3.7 Deployment Active" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-bold text-lg tracking-tight group-hover:text-indigo-600 transition-colors leading-none">Docs Resizer ✨</span>
+                        <span className="text-[9px] font-black text-green-600 uppercase tracking-widest mt-0.5 flex items-center">
+                            <span className="w-1 h-1 bg-green-500 rounded-full mr-1 animate-ping" />
+                            v3.7 Super Stable
+                        </span>
+                    </div>
                 </div>
                 <div className="flex items-center space-x-4">
                     <div className="relative">
@@ -533,12 +542,8 @@ export function Dashboard() {
                                         <div className="py-5"><h2 className="text-base font-black text-gray-900 truncate leading-tight">{structure.title}</h2><p className="text-[11px] text-gray-500 mt-1">상세 조절을 위해 아래 챕터를 선택해 주세요.</p></div>
                                     ) : (
                                         <div className="divide-y divide-gray-100 bg-white">
-                                            {/* Header Row: v3.6 Super Stable Grid */}
+                                            {/* Header Row: v3.7 Optimized Grid */}
                                             <div className="grid items-center p-3 min-h-[64px] bg-white relative overflow-hidden" style={{ gridTemplateColumns: '110px 1fr 110px', gap: '0px' }}>
-                                                {/* Logic Version Dot - Green for Success */}
-                                                <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-green-500 rounded-full animate-ping z-50 pointer-events-none" title="v3.6 Super Stable" />
-                                                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-green-500 rounded-full z-50 pointer-events-none" />
-
                                                 {/* Left Column: Fixed 110px */}
                                                 <div style={{ minWidth: '0px', paddingRight: '4px' }}>
                                                     <button onClick={handleBackToOutline} className="flex items-center justify-center w-full py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 transition-all text-[11px] font-bold shadow-sm group">
@@ -568,12 +573,12 @@ export function Dashboard() {
                                                         if (areAllSelected) setSelectedImageIds(prev => prev.filter(id => !allIds.includes(id)));
                                                         else setSelectedImageIds(prev => Array.from(new Set([...prev, ...allIds])));
                                                     }} className={`flex items-center justify-center w-full py-2.5 rounded-xl transition-all text-[11px] font-bold shadow-sm ${(() => {
-                                                            const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
-                                                            const allIds = currentChapter?.images.map((img: any) => img.id) || [];
-                                                            return allIds.every((id: string) => selectedImageIds.includes(id));
-                                                        })()
-                                                            ? 'bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100'
-                                                            : 'bg-indigo-600 border border-transparent text-white hover:bg-indigo-800 shadow-indigo-100'
+                                                        const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
+                                                        const allIds = currentChapter?.images.map((img: any) => img.id) || [];
+                                                        return allIds.every((id: string) => selectedImageIds.includes(id));
+                                                    })()
+                                                        ? 'bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100'
+                                                        : 'bg-indigo-600 border border-transparent text-white hover:bg-indigo-800 shadow-indigo-100'
                                                         }`}>
                                                         {(() => {
                                                             const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
