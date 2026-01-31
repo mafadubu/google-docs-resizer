@@ -32,7 +32,7 @@ const getParagraphText = (p: any): string => {
     return p.elements?.map((e: any) => e.textRun?.content || "").join("").trim() || "";
 };
 
-const getHeadingLevel = (style: string | undefined): number => {
+const getHeadingLevel = (style: string | null | undefined): number => {
     if (!style) return 0;
     const match = style.match(/HEADING_(\d)/);
     return match ? parseInt(match[1]) : 0;

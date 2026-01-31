@@ -32,6 +32,7 @@ export function Dashboard() {
     const [isLoaded, setIsLoaded] = useState(false);
     const [isInputFolded, setIsInputFolded] = useState(false);
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+    const [highlightedChapterId, setHighlightedChapterId] = useState<string | null>(null);
 
     // Ironclad Engine States
     const [targetWidth, setTargetWidth] = useState(10);
@@ -42,6 +43,18 @@ export function Dashboard() {
     useEffect(() => {
         if (isLoaded) setIsInputFolded(true);
     }, [isLoaded]);
+
+    const handleBackToOutline = () => {
+        const currentId = activeChapterId;
+        setActiveChapterId(null);
+        if (currentId) {
+            setHighlightedChapterId(currentId);
+            setTimeout(() => setHighlightedChapterId(null), 3000);
+            setTimeout(() => {
+                document.getElementById(`chapter-${currentId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+    };
 
     const fetchStructure = async () => {
         const match = docUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
@@ -365,14 +378,25 @@ export function Dashboard() {
                                     ) : (
                                         <div className="grid gap-3">
                                             {structure.items.map((it: any) => (
-                                                <div key={it.id} onClick={() => { setActiveChapterId(it.id); setCarouselIndex(0); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="group px-6 py-5 rounded-3xl bg-gray-50/50 hover:bg-white border border-gray-100 hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all cursor-pointer flex items-center justify-between">
+                                                <motion.div
+                                                    key={it.id}
+                                                    id={`chapter-${it.id}`}
+                                                    initial={false}
+                                                    animate={{
+                                                        backgroundColor: highlightedChapterId === it.id ? "rgba(238, 242, 255, 1)" : "rgba(249, 250, 251, 0.5)",
+                                                        borderColor: highlightedChapterId === it.id ? "#818cf8" : "#f3f4f6",
+                                                        scale: highlightedChapterId === it.id ? 1.02 : 1
+                                                    }}
+                                                    onClick={() => { setActiveChapterId(it.id); setCarouselIndex(0); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                    className="group px-6 py-5 rounded-3xl border hover:bg-white hover:border-indigo-100 hover:shadow-xl hover:shadow-indigo-500/5 transition-all cursor-pointer flex items-center justify-between"
+                                                >
                                                     <div className="flex items-center min-w-0" style={{ paddingLeft: `${(it.level - 1) * 24}px` }}>
                                                         <span className="text-[10px] font-black text-indigo-400 w-8 shrink-0">H{it.level}</span>
                                                         <span className={`text-gray-800 truncate ${it.level === 1 ? 'font-black text-base' : 'font-bold text-sm'}`}>{it.title}</span>
                                                         {it.imageCount > 0 && <span className="ml-3 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-lg text-[9px] font-black uppercase tracking-widest">{it.imageCount} imgs</span>}
                                                     </div>
                                                     <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
-                                                </div>
+                                                </motion.div>
                                             ))}
                                         </div>
                                     )}
