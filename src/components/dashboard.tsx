@@ -532,32 +532,33 @@ export function Dashboard() {
                                     {!activeChapterId ? (
                                         <div className="py-5"><h2 className="text-base font-black text-gray-900 truncate leading-tight">{structure.title}</h2><p className="text-[11px] text-gray-500 mt-1">상세 조절을 위해 아래 챕터를 선택해 주세요.</p></div>
                                     ) : (
-                                        <div className="divide-y divide-gray-50 bg-white">
-                                            {/* Header Row: Fixed Grid Layout [Left Button | Title | Right Button] */}
-                                            <div className="grid grid-cols-[90px_1fr_90px] items-center gap-2 p-3 min-h-[60px] bg-white relative">
-                                                {/* Version Marker */}
-                                                <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-500 rounded-full opacity-60 z-50" title="v3.2 Grid Layout" />
+                                        <div className="divide-y divide-gray-100 bg-white">
+                                            {/* Header Row: Hardened Grid Layout [Left: 100px | Center: Auto | Right: 100px] */}
+                                            <div className="grid grid-cols-[100px_1fr_100px] items-center gap-0 p-3 min-h-[64px] bg-white relative overflow-hidden">
+                                                {/* Logic Version Dot */}
+                                                <div className="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full animate-pulse z-50 pointer-events-none" title="v3.3 Optimized" />
 
-                                                {/* Left: Back Button */}
-                                                <div className="justify-self-start w-full">
-                                                    <button onClick={handleBackToOutline} className="flex items-center justify-center w-full py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-[11px] font-bold shadow-sm group">
-                                                        <ChevronLeft className="w-3.5 h-3.5 mr-0.5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                                                {/* Left Column: Fixed 100px */}
+                                                <div className="min-w-0 pr-1">
+                                                    <button onClick={handleBackToOutline} className="flex items-center justify-center w-full py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 transition-all text-[11px] font-bold shadow-sm group">
+                                                        <ChevronLeft className="w-3.5 h-3.5 mr-0.5 text-gray-400 group-hover:text-indigo-600 transition-colors" />
                                                         목차
                                                     </button>
                                                 </div>
 
-                                                {/* Center: Title (Truncated) */}
-                                                <div className="flex flex-col items-center justify-center min-w-0 px-1 w-full overflow-hidden">
-                                                    <h3 className="text-[13px] font-black text-gray-900 truncate w-full text-center leading-tight">
+                                                {/* Center Column: Title (Flexible with Truncate) */}
+                                                <div className="flex flex-col items-center justify-center min-w-0 px-2 w-full">
+                                                    <h3 className="text-[14px] font-black text-gray-900 truncate w-full text-center leading-none" title={structure.items.find((it: any) => it.id === activeChapterId)?.title}>
                                                         {structure.items.find((it: any) => it.id === activeChapterId)?.title}
                                                     </h3>
-                                                    <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded-md tracking-tight">
-                                                        챕터 편집
-                                                    </span>
+                                                    <div className="mt-1 flex items-center space-x-1.5 overflow-hidden">
+                                                        <span className="shrink-0 w-1 h-1 bg-indigo-400 rounded-full" />
+                                                        <span className="text-indigo-500 text-[9px] font-bold uppercase tracking-wider truncate">챕터 이미지 조절</span>
+                                                    </div>
                                                 </div>
 
-                                                {/* Right: Select All Button */}
-                                                <div className="justify-self-end w-full">
+                                                {/* Right Column: Fixed 100px */}
+                                                <div className="min-w-0 pl-1">
                                                     <button onClick={() => {
                                                         const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                         if (!currentChapter) return;
@@ -570,20 +571,20 @@ export function Dashboard() {
                                                             const allIds = currentChapter?.images.map((img: any) => img.id) || [];
                                                             return allIds.every((id: string) => selectedImageIds.includes(id));
                                                         })()
-                                                            ? 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+                                                            ? 'bg-red-50 border border-red-100 text-red-600 hover:bg-red-100'
                                                             : 'bg-indigo-600 border border-transparent text-white hover:bg-indigo-700 shadow-indigo-100'
                                                         }`}>
                                                         {(() => {
                                                             const currentChapter = structure.items.find((it: any) => it.id === activeChapterId);
                                                             const allIds = currentChapter?.images.map((img: any) => img.id) || [];
-                                                            return allIds.every((id: string) => selectedImageIds.includes(id)) ? "해제" : "전체 선택";
+                                                            return allIds.every((id: string) => selectedImageIds.includes(id)) ? "전체 해제" : "전체 선택";
                                                         })()}
                                                     </button>
                                                 </div>
                                             </div>
 
-                                            {/* Toolbar */}
-                                            <div className="flex items-center justify-between py-2.5 px-4 bg-gray-50/50">
+                                            {/* Sub-Header: Toolbar */}
+                                            <div className="flex items-center justify-between py-2 px-4 bg-gray-50/50">
                                                 <div className="flex items-center bg-gray-100/50 rounded-xl p-1">
                                                     <button onClick={() => setViewMode('grid')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Grid3X3 className="w-3.5 h-3.5 mr-1.5" />그리드</button>
                                                     <button onClick={() => setViewMode('carousel')} className={`flex items-center px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'carousel' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}><Maximize2 className="w-3.5 h-3.5 mr-1.5" />캐러셀</button>
