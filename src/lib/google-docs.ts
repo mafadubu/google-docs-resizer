@@ -302,43 +302,37 @@ export const calculateImageResizeRequests = (
 
     actions.forEach(action => {
         if (action.type === 'inline') {
-            // STRATEGY: Delete FIRST, then Insert.
-            // 1. Delete the old image at [index, index + 1].
-            // 2. Insert new image at [index].
-            // This is safer because we clear the spot first.
+            // NEW STRATEGY: Update Properties (Official & Stable)
+            // No deletion, no index shift, no "Internal Error" from range deletion.
             requests.push({
-                deleteContentRange: {
-                    range: {
-                        startIndex: action.index,
-                        endIndex: action.index + 1
-                    }
-                }
-            });
-            requests.push({
-                insertInlineImage: {
-                    uri: action.uri,
-                    location: { index: action.index },
-                    objectSize: {
-                        width: { magnitude: action.width, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
+                updateInlineObjectProperties: {
+                    objectId: action.id,
+                    inlineObjectProperties: {
+                        embeddedObject: {
+                            size: {
+                                width: { magnitude: action.width, unit: 'PT' },
+                                height: { magnitude: action.height, unit: 'PT' }
+                            }
+                        }
+                    },
+                    fields: 'embeddedObject.size'
                 }
             });
             originalIds.push(action.id);
         } else if (action.type === 'positioned') {
+            // Same for floating images
             requests.push({
-                deletePositionedObject: {
-                    objectId: action.id
-                }
-            });
-            requests.push({
-                insertInlineImage: {
-                    uri: action.uri,
-                    location: { index: action.anchorIndex },
-                    objectSize: {
-                        width: { magnitude: action.width, unit: 'PT' },
-                        height: { magnitude: action.height, unit: 'PT' }
-                    }
+                updatePositionedObjectProperties: {
+                    objectId: action.id,
+                    positionedObjectProperties: {
+                        embeddedObject: {
+                            size: {
+                                width: { magnitude: action.width, unit: 'PT' },
+                                height: { magnitude: action.height, unit: 'PT' }
+                            }
+                        }
+                    },
+                    fields: 'embeddedObject.size'
                 }
             });
             originalIds.push(action.id);
