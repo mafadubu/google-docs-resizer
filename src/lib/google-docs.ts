@@ -178,7 +178,9 @@ export const fetchDocumentStructure = async (docId: string, accessToken: string)
 
 export const calculateImageResizeRequests = (
     doc: any, // Raw API response
-    options: ResizeRequest
+    options: ResizeRequest,
+    accessToken: string,
+    host: string
 ) => {
     const actions: any[] = [];
     const targetWidthPt = options.targetWidthCm * 28.3465;
@@ -301,9 +303,11 @@ export const calculateImageResizeRequests = (
     const originalIds: string[] = [];
 
     actions.forEach(action => {
+        // Build proxy URL (Must be publicly accessible for Google Docs fetcher)
+        const proxyUri = `https://${host}/api/image-proxy?url=${encodeURIComponent(action.uri)}&token=${accessToken}`;
+
         if (action.type === 'inline') {
-            // BACK TO DELETE-INSERT STRATEGY
-            // Since property update is NOT officially in Docs API v1 batchUpdate.
+            // Use Delete-Insert with PROXY URI to avoid "Internal Error" from restricted contentUri
             requests.push({
                 deleteContentRange: {
                     range: {
@@ -314,7 +318,7 @@ export const calculateImageResizeRequests = (
             });
             requests.push({
                 insertInlineImage: {
-                    uri: action.uri,
+                    uri: proxyUri,
                     location: { index: action.index },
                     objectSize: {
                         width: { magnitude: action.width, unit: 'PT' },
@@ -331,7 +335,7 @@ export const calculateImageResizeRequests = (
             });
             requests.push({
                 insertInlineImage: {
-                    uri: action.uri,
+                    uri: proxyUri,
                     location: { index: action.anchorIndex },
                     objectSize: {
                         width: { magnitude: action.width, unit: 'PT' },

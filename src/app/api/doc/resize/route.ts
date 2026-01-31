@@ -27,11 +27,12 @@ export async function POST(req: Request) {
         const doc = docRes.data;
 
         // 2. Calculate requests
+        const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "google-docs-resizer.vercel.app";
         const { requests, originalIds } = calculateImageResizeRequests(doc, {
             targetWidthCm,
             scopes: Array.isArray(scopes) ? scopes : undefined,
             selectedImageIds: Array.isArray(selectedImageIds) ? selectedImageIds : undefined
-        });
+        }, accessToken, host);
 
         if (requests.length === 0) {
             return NextResponse.json({ message: "No images found to resize", count: 0 });
