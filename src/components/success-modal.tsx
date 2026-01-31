@@ -7,7 +7,7 @@ export function SuccessModal({ isOpen, onClose, message }: { isOpen: boolean; on
         if (isOpen) {
             const timer = setTimeout(() => {
                 onClose();
-            }, 2000); // Auto close after 2 seconds
+            }, 3000); // Auto close after 3 seconds
             return () => clearTimeout(timer);
         }
     }, [isOpen, onClose]);
@@ -46,7 +46,13 @@ export function SuccessModal({ isOpen, onClose, message }: { isOpen: boolean; on
                             </motion.div>
                         </div>
                         <h3 className="font-bold text-xl text-gray-900 mb-2">성공!</h3>
-                        <p className="text-gray-600 font-medium">{message}</p>
+                        <p className="text-gray-600 font-medium mb-6">{message}</p>
+                        <button
+                            onClick={onClose}
+                            className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-100 transition-all active:scale-95"
+                        >
+                            확인
+                        </button>
                     </motion.div>
                 </div>
             )}

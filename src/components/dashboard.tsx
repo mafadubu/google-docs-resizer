@@ -299,7 +299,7 @@ export function Dashboard() {
         setResizeProgress(0);
         setResizeStats({ success: 0, failed: 0, total: imageIds.length });
 
-        const CHUNK_SIZE = 10; // 10 images at a time from client side
+        const CHUNK_SIZE = 8; // Reduced slightly for even higher stability
         let finalSuccess = 0;
         let finalFailed = 0;
         const newMapping: Record<string, string> = {};
@@ -334,6 +334,11 @@ export function Dashboard() {
                 const currentProgress = Math.min(Math.round(((i + chunkIds.length) / imageIds.length) * 100), 100);
                 setResizeProgress(currentProgress);
                 setResizeStats({ success: finalSuccess, failed: finalFailed, total: imageIds.length });
+
+                // Add a small delay between chunks to prevent API rate limiting
+                if (i + CHUNK_SIZE < imageIds.length) {
+                    await new Promise(resolve => setTimeout(resolve, 600));
+                }
             }
 
             // Update local state with new IDs to prevent ghost images
@@ -374,7 +379,13 @@ export function Dashboard() {
             <AnimatePresence>
                 {isProcessing && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-indigo-950/80 backdrop-blur-md flex items-center justify-center p-6">
-                        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center space-y-6">
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                            className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center space-y-6"
+                        >
                             <div className="relative w-24 h-24 mx-auto">
                                 <svg className="w-full h-full rotate-[-90deg]">
                                     <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100" />
@@ -401,7 +412,7 @@ export function Dashboard() {
                             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] animate-pulse">
                                 처리 중: {resizeStats.success + resizeStats.failed} / {resizeStats.total}
                             </div>
-                        </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -409,13 +420,13 @@ export function Dashboard() {
                 <div className="flex items-center space-x-3 cursor-pointer group" onClick={handleReset}>
                     <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform relative">
                         G
-                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse" title="v3.7 Deployment Active" />
+                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" title="v6.0 Crystal Engine Active" />
                     </div>
                     <div className="flex flex-col">
                         <span className="font-bold text-lg tracking-tight group-hover:text-indigo-600 transition-colors leading-none">Docs Resizer ✨</span>
                         <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mt-0.5 flex items-center">
                             <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full mr-1.5 animate-pulse" />
-                            v5.0 Hyper-Fix
+                            v6.0 Micro-Batch Crystal
                         </span>
                     </div>
                 </div>
@@ -623,7 +634,7 @@ export function Dashboard() {
                                                     </h3>
                                                     <div className="mt-1 flex items-center space-x-1.5 overflow-hidden">
                                                         <span className="shrink-0 w-1 h-1 bg-blue-400 rounded-full" />
-                                                        <span className="text-gray-400 text-[9px] font-bold uppercase tracking-wider truncate">챕터 상세 조절 (엔진 v3.8)</span>
+                                                        <span className="text-gray-400 text-[9px] font-bold uppercase tracking-wider truncate">챕터 상세 조절 (엔진 v6.0 Crystal)</span>
                                                     </div>
                                                 </div>
 
@@ -809,6 +820,6 @@ export function Dashboard() {
                     </div>
                 </div>
             </main>
-        </div>
+        </div >
     );
 }
