@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
-import { findImageMetadata, getGoogleDocsClient } from "@/lib/google-docs";
+import { getGoogleDocsClient } from "@/lib/google-docs";
 import { incrementStats, storeImageTicket } from "@/lib/redis";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from 'uuid';
@@ -9,108 +9,127 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     // @ts-ignore
     const accessToken = session?.accessToken;
-
-    if (!session || !accessToken) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session || !accessToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
-        const { docId, targetWidthCm, imageId } = await req.json();
-
-        if (!docId || !targetWidthCm || !imageId) {
-            return NextResponse.json({ error: "Missing required parameters (Atomic v7.0)" }, { status: 400 });
-        }
+        const { docId, targetWidthCm, selectedImageIds } = await req.json();
+        if (!docId || !targetWidthCm || !selectedImageIds) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
 
         const docs = getGoogleDocsClient(accessToken);
-
-        // 1. Fetch FRESH document state
         const docRes = await docs.documents.get({ documentId: docId });
         const doc = docRes.data;
 
-        // 2. Find CURRENT position and metadata for this specific image
-        const metadata = findImageMetadata(doc, imageId);
-        if (!metadata) {
-            return NextResponse.json({ error: "Image not found in latest document state", imageId }, { status: 404 });
+        // Collect actions with current indices
+        const actions: any[] = [];
+        const targetWidthPt = targetWidthCm * 28.3465;
+
+        const findImageIdx = (id: string) => {
+            const inlineObj = doc.inlineObjects?.[id];
+            if (inlineObj) {
+                // Find in body
+                let foundAt = -1;
+                const search = (els: any[]) => {
+                    for (const el of els) {
+                        if (el.paragraph) {
+                            for (const element of el.paragraph.elements || []) {
+                                if (element.inlineObjectElement?.inlineObjectId === id) { foundAt = element.startIndex; return true; }
+                            }
+                        }
+                        if (el.table) {
+                            for (const r of el.table.tableRows || []) {
+                                for (const c of r.tableCells || []) { if (search(c.content || [])) return true; }
+                            }
+                        }
+                    }
+                    return false;
+                };
+                search(doc.body?.content || []);
+                if (foundAt !== -1) {
+                    const props = inlineObj.inlineObjectProperties?.embeddedObject;
+                    return { type: 'inline', index: foundAt, uri: props?.imageProperties?.contentUri, w: props?.size?.width?.magnitude, h: props?.size?.height?.magnitude };
+                }
+            }
+            const positionedObj = doc.positionedObjects?.[id];
+            if (positionedObj) {
+                let foundAt = -1;
+                const search = (els: any[]) => {
+                    for (const el of els) {
+                        if (el.paragraph?.positionedObjectIds?.includes(id)) { foundAt = el.startIndex; return true; }
+                        if (el.table) {
+                            for (const r of el.table.tableRows || []) {
+                                for (const c of r.tableCells || []) { if (search(c.content || [])) return true; }
+                            }
+                        }
+                    }
+                    return false;
+                };
+                search(doc.body?.content || []);
+                const props = positionedObj.positionedObjectProperties?.embeddedObject;
+                return { type: 'positioned', index: foundAt, uri: props?.imageProperties?.contentUri, w: props?.size?.width?.magnitude, h: props?.size?.height?.magnitude };
+            }
+            return null;
+        };
+
+        for (const id of selectedImageIds) {
+            const meta = findImageIdx(id);
+            if (meta && meta.uri) {
+                const scale = targetWidthPt / (meta.w || targetWidthPt);
+                actions.push({ ...meta, id, newH: (meta.h || targetWidthPt) * scale });
+            }
         }
+
+        // --- CRITICAL: SORT DESCENDING BY INDEX ---
+        // This ensures moving/deleting an image doesn't shift indices of images we haven't processed yet.
+        actions.sort((a, b) => b.index - a.index);
 
         const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "google-docs-resizer.vercel.app";
-        const targetWidthPt = targetWidthCm * 28.3465;
-        const scale = targetWidthPt / (metadata.width || targetWidthPt);
-        const newHeightPt = (metadata.height || targetWidthPt) * scale;
+        const newIdMapping: Record<string, string> = {};
+        let success = 0;
+        let failed = 0;
 
-        // 3. Prepare Proxy
-        const ticketId = uuidv4().substring(0, 8) + Date.now().toString(36);
-        await storeImageTicket(ticketId, { url: metadata.uri!, token: accessToken });
-        const proxyUri = `https://${host}/api/image-proxy?id=${ticketId}`;
+        // Process in Micro-Batches of 5 to avoid timeouts
+        const CHUNK_SIZE = 5;
+        for (let i = 0; i < actions.length; i += CHUNK_SIZE) {
+            const chunk = actions.slice(i, i + CHUNK_SIZE);
+            const requests: any[] = [];
+            const chunkIds: string[] = [];
 
-        // 4. Atomic Mutation (Delete and Re-insert)
-        const requests: any[] = [];
+            for (const action of chunk) {
+                const tkId = uuidv4().substring(0, 8) + Date.now().toString(36);
+                await storeImageTicket(tkId, { url: action.uri, token: accessToken });
+                const proxyUri = `https://${host}/api/image-proxy?id=${tkId}`;
 
-        if (metadata.type === 'inline') {
-            requests.push({
-                deleteContentRange: {
-                    range: {
-                        startIndex: metadata.index!,
-                        endIndex: metadata.index! + 1
-                    }
+                if (action.type === 'inline') {
+                    requests.push({ deleteContentRange: { range: { startIndex: action.index, endIndex: action.index + 1 } } });
+                    requests.push({ insertInlineImage: { uri: proxyUri, location: { index: action.index }, objectSize: { width: { magnitude: targetWidthPt, unit: 'PT' }, height: { magnitude: action.newH, unit: 'PT' } } } });
+                } else {
+                    requests.push({ deletePositionedObject: { objectId: action.id } });
+                    requests.push({ insertInlineImage: { uri: proxyUri, location: { index: action.index }, objectSize: { width: { magnitude: targetWidthPt, unit: 'PT' }, height: { magnitude: action.newH, unit: 'PT' } } } });
                 }
-            });
-            requests.push({
-                insertInlineImage: {
-                    uri: proxyUri,
-                    location: { index: metadata.index! },
-                    objectSize: {
-                        width: { magnitude: targetWidthPt, unit: 'PT' },
-                        height: { magnitude: newHeightPt, unit: 'PT' }
+                chunkIds.push(action.id);
+            }
+
+            try {
+                const res = await docs.documents.batchUpdate({ documentId: docId, requestBody: { requests } });
+                res.data.replies?.forEach((reply, rIdx) => {
+                    const newId = reply.insertInlineImage?.objectId;
+                    if (newId) {
+                        // Find which action this reply belongs to (insert request is every 2nd in requests array)
+                        const actionIdx = Math.floor(rIdx / 2);
+                        if (chunkIds[actionIdx]) newIdMapping[chunkIds[actionIdx]] = newId;
+                        success++;
                     }
-                }
-            });
-        } else {
-            // Positioned
-            requests.push({
-                deletePositionedObject: { objectId: metadata.id }
-            });
-            requests.push({
-                insertInlineImage: {
-                    uri: proxyUri,
-                    location: { index: metadata.anchorIndex! },
-                    objectSize: {
-                        width: { magnitude: targetWidthPt, unit: 'PT' },
-                        height: { magnitude: newHeightPt, unit: 'PT' }
-                    }
-                }
-            });
+                });
+            } catch (e) {
+                console.error("Batch Error:", e);
+                failed += chunk.length;
+            }
         }
 
-        const response = await docs.documents.batchUpdate({
-            documentId: docId,
-            requestBody: { requests },
-        });
-
-        const replies = response.data.replies || [];
-        let newObjectId = imageId;
-
-        // Find the new ID from the reply
-        replies.forEach(reply => {
-            if (reply.insertInlineImage?.objectId) {
-                newObjectId = reply.insertInlineImage.objectId;
-            }
-        });
-
-        incrementStats(1).catch(e => console.error("Stats Error:", e));
-
-        return NextResponse.json({
-            success: true,
-            oldId: imageId,
-            newId: newObjectId,
-            message: "Atomic swap completed"
-        });
+        incrementStats(success).catch(() => { });
+        return NextResponse.json({ success: true, results: { success, failed, total: actions.length }, newIdMapping });
 
     } catch (error: any) {
-        console.error("Atomic Resize Error:", error);
-        return NextResponse.json(
-            { error: error.message || "Failed to resize image", imageId: req.json().then(j => j.imageId).catch(() => 'unknown') },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
