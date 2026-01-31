@@ -37,51 +37,64 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "No images found to resize", count: 0 });
         }
 
-        // 3. Batch Update in chunks
-        // Since we use property update, IDs DON'T change. Very stable.
-        const CHUNK_SIZE = 50;
-        let updatedCount = 0;
+        // 3. Batch Update in chunks (optimized for Vercel 10s limit)
+        // Delete+Insert strategy changes IDs, so mapping is crucial.
+        const CHUNK_SIZE = 40; // 40 images (80 requests) is safe and fast
+        const newIdMapping: Record<string, string> = {};
+        let processedInsertCount = 0;
 
-        for (let i = 0; i < requests.length; i += CHUNK_SIZE) {
-            const chunk = requests.slice(i, i + CHUNK_SIZE);
+        for (let i = 0; i < requests.length; i += (CHUNK_SIZE * 2)) {
+            const chunk = requests.slice(i, i + (CHUNK_SIZE * 2));
             let retryCount = 0;
             const MAX_RETRIES = 2;
 
             while (retryCount <= MAX_RETRIES) {
                 try {
-                    await docs.documents.batchUpdate({
+                    const response = await docs.documents.batchUpdate({
                         documentId: docId,
                         requestBody: {
                             requests: chunk,
                         },
                     });
-                    updatedCount += chunk.length;
+
+                    // Update ID Mapping for frontend
+                    const replies = response.data.replies || [];
+                    let chunkInsertCount = 0;
+                    chunk.forEach((req, cIdx) => {
+                        if (req.insertInlineImage) {
+                            const reply = replies[cIdx];
+                            const oldId = originalIds[processedInsertCount + chunkInsertCount];
+                            const newId = reply.insertInlineImage?.objectId;
+                            if (oldId && newId) newIdMapping[oldId] = newId;
+                            chunkInsertCount++;
+                        }
+                    });
+                    processedInsertCount += chunkInsertCount;
                     break;
                 } catch (chunkError: any) {
                     console.error(`[Resize Error] Batch starting at ${i}, Retry ${retryCount}:`, chunkError.message);
-
-                    const isRetryable = chunkError.message?.includes("Internal error") || chunkError.code >= 500;
-                    if (isRetryable && retryCount < MAX_RETRIES) {
+                    if (chunkError.message?.includes("Internal error") && retryCount < MAX_RETRIES) {
                         retryCount++;
-                        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+                        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
                         continue;
                     }
                     throw chunkError;
                 }
             }
 
-            if (i + CHUNK_SIZE < requests.length) {
-                await new Promise(resolve => setTimeout(resolve, 300));
+            if (i + (CHUNK_SIZE * 2) < requests.length) {
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
         }
 
         // Update stats (fire and forget)
-        incrementStats(updatedCount).catch(e => console.error("Stats Error:", e));
+        incrementStats(processedInsertCount).catch(e => console.error("Stats Error:", e));
 
         return NextResponse.json({
             success: true,
-            count: updatedCount,
-            message: `Successfully resized ${updatedCount} images.`
+            count: processedInsertCount,
+            newIdMapping,
+            message: `Successfully resized ${processedInsertCount} images.`
         });
 
     } catch (error: any) {
